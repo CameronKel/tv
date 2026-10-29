@@ -24,11 +24,11 @@ enum APIError: Error, LocalizedError {
     }
 }
 
-final class CinejoyAPI {
+final class CinejoyAPI: @unchecked Sendable {
     static let shared = CinejoyAPI()
-    private let session = URLSession.shared
+    let session = URLSession.shared
 
-    private let tmdbAPIKey: String = {
+    let tmdbAPIKey: String = {
         Bundle.main.infoDictionary?["TMDB_API_KEY"] as? String ?? ""
     }()
 
