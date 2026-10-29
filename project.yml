@@ -8,10 +8,7 @@ options:
 packages:
   WasmKit:
     url: https://github.com/swiftwasm/WasmKit.git
-    from: "0.1.0"
-  swift-system:
-    url: https://github.com/apple/swift-system.git
-    exactVersion: "1.5.0"
+    exactVersion: "0.0.8"
 
 settings:
   base:
@@ -33,8 +30,6 @@ targets:
         optional: true
     dependencies:
       - package: WasmKit
-      - package: swift-system
-        product: SystemPackage
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yourname.cinejoynative
