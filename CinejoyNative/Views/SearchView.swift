@@ -26,7 +26,7 @@ struct SearchView: View {
                 }
             }
             .searchable(text: $vm.searchText, prompt: "Search movies and shows")
-            .onChange(of: vm.searchText) { _, _ in
+            .onChange(of: vm.searchText) { _ in          // single-value signature for tvOS 16
                 Task { await vm.performSearch() }
             }
             .navigationDestination(for: MovieInfo.self) { movie in
