@@ -112,7 +112,7 @@ enum NativeStreamResolver {
     private static func seal(plaintext: Data) throws -> (header: Data, wire: Data) {
         let (runtime, instance) = try getOrCreateInstance()
 
-        guard let memory = try runtime.getExport(instance, name: "memory") as? Memory else {
+        guard case let .memory(memory)? = instance.exports["memory"] else {
             throw APIError.missingConfiguration
         }
 
@@ -139,8 +139,8 @@ enum NativeStreamResolver {
             throw APIError.missingConfiguration
         }
 
-        writeMemory(memory, ptr: inPtr, data: plaintext)
-        writeMemory(memory, ptr: ctxPtr, data: ctx)
+        writeMemory(runtime, memory, ptr: inPtr, data: plaintext)
+        writeMemory(runtime, memory, ptr: ctxPtr, data: ctx)
 
         let result = try runtime.invoke(instance, function: "seal_request", with: [
             .i32(inPtr), .i32(inLen),
@@ -155,7 +155,7 @@ enum NativeStreamResolver {
             )
         }
 
-        let output = readMemory(memory, ptr: outPtr, len: outLen)
+        let output = readMemory(runtime, memory, ptr: outPtr, len: outLen)
         return (output.prefix(98), output.suffix(from: 98))
     }
 
@@ -178,18 +178,23 @@ enum NativeStreamResolver {
         return (runtime, instance)
     }
 
-    private static func writeMemory(_ memory: Memory, ptr: UInt32, data: Data) {
+    private static func writeMemory(
+        _ runtime: Runtime, _ memory: MemoryAddress, ptr: UInt32, data: Data
+    ) {
         let base = Int(ptr)
-        var mem = memory.data
-        for (i, byte) in data.enumerated() {
-            mem[base + i] = byte
+        runtime.store.withMemory(at: memory) { mem in
+            for (i, byte) in data.enumerated() {
+                mem.data[base + i] = byte
+            }
         }
-        memory.data = mem
     }
 
-    private static func readMemory(_ memory: Memory, ptr: UInt32, len: Int) -> Data {
+    private static func readMemory(
+        _ runtime: Runtime, _ memory: MemoryAddress, ptr: UInt32, len: Int
+    ) -> Data {
         let base = Int(ptr)
-        let mem = memory.data
-        return Data(mem[base..<(base + len)])
+        return runtime.store.withMemory(at: memory) { mem in
+            Data(mem.data[base..<(base + len)])
+        }
     }
 }
