@@ -18,9 +18,10 @@ NativeStreamResolver
   └─ AES-256-GCM decrypt (CryptoKit)            → m3u8 URL
   ↓
 HLSResourceLoader (AVAssetResourceLoaderDelegate)
-  ├─ intercepts every manifest + segment request
-  ├─ fetches real https URL
-  └─ corrects spoofed content-type: image/jpeg → application/vnd.apple.mpegurl / video/mp4
+  ├─ intercepts every playlist (served as image/jpeg, so AVPlayer rejects it)
+  ├─ fetches the real https URL
+  └─ rewrites URIs: sub-playlists stay intercepted, segments/init/keys → absolute https
+     (AVFoundation can't serve HLS segments through a resource loader)
   ↓
 AVPlayer plays fMP4 HLS
 ```
@@ -42,7 +43,7 @@ AVPlayer plays fMP4 HLS
 |---|---|
 | Movie pipeline (`/Nebula/movie`) | ✅ Verified end-to-end |
 | TV pipeline (`/Nebula/series` + season/episode) | ✅ Verified end-to-end |
-| HLS content-type fix (`image/jpeg` spoofing) | ✅ Handled by `HLSResourceLoader` |
+| HLS content-type fix (`image/jpeg` spoofing) | Handled by `HLSResourceLoader` (playlists only; segments load directly) |
 | `api.wing.st/info` for detail view | ✅ |
 | TMDB search + fallback IMDB via `external_ids` | ✅ |
 
