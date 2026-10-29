@@ -28,8 +28,8 @@ AVPlayer plays fMP4 HLS
 
 ## App
 
-- **Navigation**: a menu down the left edge (Home, Movies, TV Shows, Search). Swipe left to
-  reach it; it widens to show names, and moving through it switches section.
+- **Navigation**: the system sidebar down the left edge on tvOS 18+ (Home, Movies, TV Shows,
+  Search); the top tab bar on older tvOS.
 
 - **Home**: featured title, Continue Watching, Recently Watched, My List,
   "Because you watched …", then trending and popular rows.

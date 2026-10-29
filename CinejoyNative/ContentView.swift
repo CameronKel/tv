@@ -5,33 +5,37 @@ struct ContentView: View {
     @StateObject private var history = WatchHistory.shared
 
     @State private var section: AppSection = .home
-    /// Sections opened so far. Each loads on first visit, then stays alive.
-    @State private var opened: Set<AppSection> = [.home]
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            // Opened sections stay alive so each keeps its place; only the
-            // selected one is shown and can take focus.
-            ZStack {
-                ForEach(AppSection.allCases.filter(opened.contains)) { item in
-                    page(item)
-                        .opacity(section == item ? 1 : 0)
-                        .disabled(section != item)
+        sections
+            .environmentObject(playback)
+            .environmentObject(history)
+            .preferredColorScheme(.dark)
+            .task { await SearchIndex.shared.warmUp() }
+            .fullScreenCover(isPresented: $playback.isPresented, onDismiss: { playback.didDismiss() }) {
+                PlayerScreen().environmentObject(playback)
+            }
+    }
+
+    /// The system sidebar down the left edge where tvOS has it (18 and later),
+    /// otherwise the top tab bar.
+    @ViewBuilder
+    private var sections: some View {
+        if #available(tvOS 18.0, *) {
+            TabView(selection: $section) {
+                ForEach(AppSection.allCases) { item in
+                    Tab(item.title, systemImage: item.icon, value: item) { page(item) }
                 }
             }
-            .padding(.leading, SideMenu.collapsedWidth)
-            .focusSection()
-
-            SideMenu(selection: $section)
-        }
-        .onChange(of: section) { opened.insert($0) }   // single-value signature for tvOS 16
-        .environmentObject(playback)
-        .environmentObject(history)
-        .preferredColorScheme(.dark)
-        .background(Color.black.ignoresSafeArea())
-        .task { await SearchIndex.shared.warmUp() }
-        .fullScreenCover(isPresented: $playback.isPresented, onDismiss: { playback.didDismiss() }) {
-            PlayerScreen().environmentObject(playback)
+            .tabViewStyle(.sidebarAdaptable)
+        } else {
+            TabView(selection: $section) {
+                ForEach(AppSection.allCases) { item in
+                    page(item)
+                        .tabItem { Label(item.title, systemImage: item.icon) }
+                        .tag(item)
+                }
+            }
         }
     }
 
