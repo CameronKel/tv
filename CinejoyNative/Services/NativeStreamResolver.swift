@@ -11,10 +11,10 @@ enum NativeStreamResolver {
 
     // MARK: - Public entry point
 
-    /// Stream sources, best first, as `api.wing.st/servers` names them.
-    /// `secret` carries the most titles and has 4K; Nebula tops out at 1080p
-    /// and lacks some older films; the rest are fallbacks that are often down.
-    static let sources = ["secret", "Nebula", "Lisbon", "Athens", "Solara"]
+    /// Stream sources in the order to try them, as `api.wing.st/servers` names
+    /// them. Nebula (1080p) starts and plays most smoothly; `secret` carries
+    /// titles Nebula lacks, up to 4K HDR; the rest are often down.
+    static let sources = ["Nebula", "secret", "Lisbon", "Athens", "Solara"]
 
     struct Resolved {
         let url: URL

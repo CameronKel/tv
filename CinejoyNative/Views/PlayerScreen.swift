@@ -16,7 +16,7 @@ struct PlayerScreen: View {
                 VStack(spacing: 30) {
                     ProgressView()
                     Text(playback.nowPlayingTitle).font(.headline)
-                    Text("Preparing stream…").foregroundStyle(.secondary)
+                    Text(playback.status).foregroundStyle(.secondary)
                     Button("Cancel") { playback.isPresented = false }
                         .padding(.top, 20)
                 }

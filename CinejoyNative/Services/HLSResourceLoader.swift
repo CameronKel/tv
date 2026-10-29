@@ -34,20 +34,13 @@ final class HLSResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
         return c?.url
     }
 
-    /// Where playback will start, so AVPlayer buffers from there.
-    private let startOffset: Double
-
-    private init(startOffset: Double) {
-        self.startOffset = startOffset
-    }
-
-    static func asset(for url: URL, startingAt startOffset: Double = 0) -> AVURLAsset {
+    static func asset(for url: URL) -> AVURLAsset {
         // Headers for the segment requests AVPlayer makes on its own.
         let asset = AVURLAsset(
             url: Self.wrapped(url),
             options: ["AVURLAssetHTTPHeaderFieldsKey": Self.httpHeaders]
         )
-        let loader = HLSResourceLoader(startOffset: startOffset)
+        let loader = HLSResourceLoader()
         asset.resourceLoader.setDelegate(loader, queue: DispatchQueue(label: "hls.loader"))
         // AVAssetResourceLoader only holds its delegate weakly; tie the loader's
         // lifetime to the asset so it serves every playlist, not just the first.
@@ -88,8 +81,7 @@ final class HLSResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
             }
 
             // Resolve relative URIs against the final URL, after any redirects.
-            let playlist = Data(Self.rewrite(text, base: http.url ?? realURL,
-                                             startOffset: self.startOffset).utf8)
+            let playlist = Data(Self.rewrite(text, base: http.url ?? realURL).utf8)
             loadingRequest.contentInformationRequest?.contentLength = Int64(playlist.count)
             loadingRequest.contentInformationRequest?.isByteRangeAccessSupported = false
             loadingRequest.dataRequest?.respond(with: playlist)
@@ -104,11 +96,7 @@ final class HLSResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
     /// Makes every URI absolute. A master playlist's URIs are other playlists,
     /// so they stay on our scheme; a media playlist's are segments, the init
     /// map and keys, which AVPlayer must fetch directly over https.
-    ///
-    /// A resume point goes into the master playlist as `EXT-X-START`, so
-    /// AVPlayer loads segments from there instead of buffering the opening
-    /// and then seeking away from it.
-    static func rewrite(_ playlist: String, base: URL, startOffset: Double = 0) -> String {
+    static func rewrite(_ playlist: String, base: URL) -> String {
         let isMaster = playlist.contains("#EXT-X-STREAM-INF")
             || playlist.contains("#EXT-X-I-FRAME-STREAM-INF")
         let resolve = { (uri: String) -> String in
@@ -116,16 +104,12 @@ final class HLSResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
             return (isMaster ? Self.wrapped(abs) : abs).absoluteString
         }
 
-        var lines = playlist.components(separatedBy: .newlines).map { line -> String in
+        return playlist.components(separatedBy: .newlines).map { line -> String in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.isEmpty { return line }
             if trimmed.hasPrefix("#") { return rewriteURIAttribute(in: line, resolve) }
             return resolve(trimmed)
-        }
-        if isMaster, startOffset > 0, !playlist.contains("#EXT-X-START") {
-            lines.insert("#EXT-X-START:TIME-OFFSET=\(Int(startOffset)),PRECISE=YES", at: 1)
-        }
-        return lines.joined(separator: "\n")
+        }.joined(separator: "\n")
     }
 
     private static let uriAttribute = try! NSRegularExpression(pattern: #"URI="([^"]*)""#)
