@@ -66,13 +66,11 @@ struct MovieDetailView: View {
                     Picker("Season", selection: $season) {
                         ForEach(1...30, id: \.self) { Text("Season \($0)").tag($0) }
                     }
-                    .pickerStyle(.menu)
-                    .frame(width: 260)
+                    .frame(width: 260)          // no .pickerStyle(.menu) — tvOS 16 default is segmented
 
                     Picker("Episode", selection: $episode) {
                         ForEach(1...60, id: \.self) { Text("Episode \($0)").tag($0) }
                     }
-                    .pickerStyle(.menu)
                     .frame(width: 260)
                 }
             }
