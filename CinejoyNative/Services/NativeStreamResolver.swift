@@ -113,7 +113,7 @@ enum NativeStreamResolver {
         let (runtime, instance) = try getOrCreateInstance()
 
         guard case let .memory(memory)? = instance.exports["memory"] else {
-            throw APIError.missingConfiguration
+            throw APIError.wasmNoMemory
         }
 
         var ctx = Data(count: 44)
@@ -136,7 +136,7 @@ enum NativeStreamResolver {
         )[0].i32
 
         guard inPtr > 0, ctxPtr > 0, outPtr > 0 else {
-            throw APIError.missingConfiguration
+            throw APIError.wasmAllocFailed
         }
 
         writeMemory(runtime, memory, ptr: inPtr, data: plaintext)
@@ -166,7 +166,7 @@ enum NativeStreamResolver {
 
         guard let url = Bundle.main.url(forResource: "crush", withExtension: "wasm"),
               let data = try? Data(contentsOf: url) else {
-            throw APIError.missingConfiguration
+            throw APIError.wasmMissing
         }
 
         let module = try parseWasm(bytes: Array(data))

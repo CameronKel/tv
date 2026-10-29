@@ -6,6 +6,9 @@ enum APIError: Error, LocalizedError {
     case decodingError(Error)
     case noResults
     case missingConfiguration
+    case wasmMissing
+    case wasmNoMemory
+    case wasmAllocFailed
 
     var errorDescription: String? {
         switch self {
@@ -14,6 +17,9 @@ enum APIError: Error, LocalizedError {
         case .decodingError(let e): return "Decoding failed: \(e.localizedDescription)"
         case .noResults: return "No stream URL found"
         case .missingConfiguration: return "TMDB_API_KEY not set in Info.plist"
+        case .wasmMissing: return "crush.wasm not found in app bundle"
+        case .wasmNoMemory: return "crush.wasm has no exported memory"
+        case .wasmAllocFailed: return "crush.wasm alloc returned a null pointer"
         }
     }
 }
