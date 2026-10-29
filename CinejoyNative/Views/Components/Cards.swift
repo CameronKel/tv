@@ -1,23 +1,75 @@
 import SwiftUI
+import UIKit
 
+/// A TMDB image. Decoded images stay in memory, so a card that scrolls back
+/// into view shows its picture at once instead of blanking and fading in again.
 struct RemoteImage: View {
     let url: URL?
 
+    @State private var loaded: (url: URL, image: UIImage)?
+    @State private var failed = false
+
     var body: some View {
-        AsyncImage(url: url, transaction: Transaction(animation: .easeIn(duration: 0.25))) { phase in
-            switch phase {
-            case .success(let image):
-                image.resizable().scaledToFill()
-            case .failure:
-                placeholder.overlay(Image(systemName: "film").font(.largeTitle).foregroundStyle(.secondary))
-            default:
+        ZStack {
+            if let image = shown {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
                 placeholder
+                if failed {
+                    Image(systemName: "film").font(.largeTitle).foregroundStyle(.secondary)
+                }
             }
         }
+        .task(id: url) { await load() }
+    }
+
+    /// Never the previous URL's picture when the view is reused for another title.
+    private var shown: UIImage? {
+        guard let url else { return nil }
+        if let loaded, loaded.url == url { return loaded.image }
+        return ImageCache.shared[url]
     }
 
     private var placeholder: some View {
         Rectangle().fill(Color.white.opacity(0.08))
+    }
+
+    @MainActor
+    private func load() async {
+        failed = false
+        guard let url else { failed = true; return }
+        if let image = ImageCache.shared[url] {
+            loaded = (url, image)
+            return
+        }
+        guard let response = try? await URLSession.shared.data(from: url),
+              let image = await UIImage(data: response.0)?.byPreparingForDisplay() else {
+            if !Task.isCancelled { failed = true }
+            return
+        }
+        ImageCache.shared[url] = image
+        guard !Task.isCancelled else { return }
+        withAnimation(.easeIn(duration: 0.2)) { loaded = (url, image) }
+    }
+}
+
+/// Decoded images by URL. NSCache drops them under memory pressure.
+final class ImageCache: @unchecked Sendable {
+    static let shared = ImageCache()
+
+    private let cache: NSCache<NSURL, UIImage> = {
+        let cache = NSCache<NSURL, UIImage>()
+        cache.totalCostLimit = 200 * 1024 * 1024
+        return cache
+    }()
+
+    subscript(url: URL) -> UIImage? {
+        get { cache.object(forKey: url as NSURL) }
+        set {
+            guard let image = newValue else { return cache.removeObject(forKey: url as NSURL) }
+            let bytes = Int(image.size.width * image.size.height * image.scale * image.scale * 4)
+            cache.setObject(image, forKey: url as NSURL, cost: bytes)
+        }
     }
 }
 

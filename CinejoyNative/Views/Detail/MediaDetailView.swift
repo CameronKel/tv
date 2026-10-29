@@ -9,8 +9,8 @@ struct MediaDetailView: View {
     @EnvironmentObject private var history: WatchHistory
     @State private var details: MediaDetails?
     @State private var selectedSeason: Int?
-    @State private var episodes: [Episode] = []
-    @State private var loadingEpisodes = false
+    /// Episodes by season, kept so switching back and forth doesn't reload.
+    @State private var episodesBySeason: [Int: [Episode]] = [:]
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -20,7 +20,7 @@ struct MediaDetailView: View {
                     header
                     if media.isTV, let seasons = details?.playableSeasons, !seasons.isEmpty {
                         EpisodesSection(media: media, seasons: seasons, selectedSeason: $selectedSeason,
-                                        episodes: episodes, isLoading: loadingEpisodes)
+                                        episodes: episodes, isLoading: episodesLoading)
                     }
                     if let recommended = details?.recommended(as: media.mediaType), !recommended.isEmpty {
                         MediaRow(title: "More Like This", items: recommended)
@@ -105,6 +105,15 @@ struct MediaDetailView: View {
         return target
     }
 
+    /// Only the selected season's episodes, never the last season's while it loads.
+    private var episodes: [Episode] {
+        selectedSeason.flatMap { episodesBySeason[$0] } ?? []
+    }
+
+    private var episodesLoading: Bool {
+        selectedSeason.map { episodesBySeason[$0] == nil } ?? false
+    }
+
     private var firstSeason: Int {
         details?.playableSeasons.first?.seasonNumber ?? 1
     }
@@ -130,17 +139,26 @@ struct MediaDetailView: View {
 
     // MARK: - Loading
 
+    // These run again each time the page reappears (back from the player or
+    // another title), so they keep what they have: reloading would swap rows
+    // for spinners and knock the focus off the item you were on.
+
     private func loadDetails() async {
-        details = try? await CinejoyAPI.shared.details(for: media)
+        guard details == nil else { return }
+        guard let loaded = try? await CinejoyAPI.shared.details(for: media) else { return }
+        details = loaded
         if media.isTV, selectedSeason == nil {
             selectedSeason = history.playTarget(for: media, firstSeason: firstSeason).season ?? firstSeason
         }
     }
 
     private func loadEpisodes() async {
-        guard media.isTV, let season = selectedSeason else { return }
-        loadingEpisodes = true
-        defer { loadingEpisodes = false }
-        episodes = (try? await CinejoyAPI.shared.season(showID: media.tmdbID, number: season).episodes) ?? []
+        guard media.isTV, let season = selectedSeason, episodesBySeason[season] == nil else { return }
+        do {
+            episodesBySeason[season] = try await CinejoyAPI.shared.season(showID: media.tmdbID, number: season).episodes
+        } catch {
+            // Left the page or switched season: leave it for the next visit.
+            if !Task.isCancelled { episodesBySeason[season] = [] }
+        }
     }
 }

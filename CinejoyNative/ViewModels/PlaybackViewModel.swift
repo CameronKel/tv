@@ -6,10 +6,19 @@ import SwiftUI
 /// `WatchHistory` as it goes. One instance lives at the app root.
 @MainActor
 final class PlaybackViewModel: ObservableObject {
-    @Published var isPresented = false
+    @Published var isPresented = false {
+        didSet {
+            // Going away: stop the sound now, tear down once the cover is gone.
+            if oldValue, !isPresented {
+                isDismissing = true
+                player?.pause()
+            }
+        }
+    }
     @Published private(set) var player: AVPlayer?
     @Published var errorMessage: String?
     @Published private(set) var nowPlayingTitle = ""
+    @Published private(set) var status = ""
 
     private struct Request {
         let media: MovieInfo
@@ -23,12 +32,34 @@ final class PlaybackViewModel: ObservableObject {
     private var nextEpisode: (season: Int, episode: Int)?
     private var resumeAt: Double = 0
     private var hasStarted = false
+    /// The current stream has actually played; failures after that are real errors.
+    private var didPlay = false
     /// Sources not yet tried for this request, so a stream the player rejects
     /// can fall back to the next one.
     private var untriedSources: [String] = []
+    private var currentSource: String?
+    /// Sources whose streams the player rejected this launch; tried last from then on.
+    private static var failedSources = Set<String>()
+    /// Starting playback while the last player is still animating away would be
+    /// ignored by SwiftUI, so it waits for `didDismiss()`.
+    private var isDismissing = false
+    private var presentWhenDismissed = false
     private var timeObserver: Any?
     private var cancellables = Set<AnyCancellable>()
     private var loadTask: Task<Void, Never>?
+    private var watchdog: Task<Void, Never>?
+    private static let stallLimit: UInt64 = 20
+
+    /// The full-screen cover finished closing.
+    func didDismiss() {
+        isDismissing = false
+        if presentWhenDismissed {
+            presentWhenDismissed = false
+            isPresented = true
+        } else if !isPresented {
+            stop()
+        }
+    }
 
     func play(_ media: MovieInfo, target: PlayTarget) {
         play(media, season: target.season, episode: target.episode,
@@ -42,8 +73,14 @@ final class PlaybackViewModel: ObservableObject {
         self.resumeAt = resumeAt
         nowPlayingTitle = Self.title(media: media, season: season, episode: episode, episodeTitle: episodeTitle)
         errorMessage = nil
-        isPresented = true
-        untriedSources = NativeStreamResolver.sources
+        status = "Finding a stream…"
+        if isDismissing {
+            presentWhenDismissed = true
+        } else {
+            isPresented = true
+        }
+        let all = NativeStreamResolver.sources
+        untriedSources = all.filter { !Self.failedSources.contains($0) } + all.filter { Self.failedSources.contains($0) }
 
         let requestID = request?.id
         loadTask = Task { [weak self] in
@@ -64,6 +101,8 @@ final class PlaybackViewModel: ObservableObject {
                 sources: untriedSources)
             guard !Task.isCancelled else { return }
             untriedSources = Array(untriedSources.drop { $0 != resolved.source }.dropFirst())
+            currentSource = resolved.source
+            status = "Loading from \(resolved.source)…"
             start(resolved.url)
         } catch {
             guard !Task.isCancelled else { return }
@@ -71,13 +110,16 @@ final class PlaybackViewModel: ObservableObject {
         }
     }
 
-    /// The player rejected the stream before it ever played: try the next source.
+    /// The stream failed or stalled before it ever played: try the next source.
     private func fallBack(after item: AVPlayerItem) {
-        guard !untriedSources.isEmpty, player?.currentItem === item else {
-            errorMessage = Self.describe(item)
+        guard player?.currentItem === item else { return }
+        if let currentSource { Self.failedSources.insert(currentSource) }
+        guard !untriedSources.isEmpty else {
+            errorMessage = item.status == .failed ? Self.describe(item) : "The stream didn't start. Try again."
             return
         }
         tearDownPlayer()
+        status = "Trying another source…"
         loadTask = Task { [weak self] in await self?.resolveAndStart() }
     }
 
@@ -90,39 +132,56 @@ final class PlaybackViewModel: ObservableObject {
         request = nil
         nextEpisode = nil
         untriedSources = []
+        currentSource = nil
     }
 
     private func tearDownPlayer() {
         if let timeObserver { player?.removeTimeObserver(timeObserver) }
         timeObserver = nil
+        watchdog?.cancel()
+        watchdog = nil
         cancellables.removeAll()
         player?.pause()
         player = nil
         hasStarted = false
+        didPlay = false
     }
 
     // MARK: - Playback
 
     private func start(_ url: URL) {
-        let item = AVPlayerItem(asset: HLSResourceLoader.asset(for: url, startingAt: resumeAt))
+        let item = AVPlayerItem(asset: HLSResourceLoader.asset(for: url))
         item.externalMetadata = metadata()
         let player = AVPlayer(playerItem: item)
 
-        var wasReady = false
         item.publisher(for: \.status)
             .receive(on: DispatchQueue.main)
             .sink { [weak self, weak item] status in
                 guard let self, let item else { return }
                 switch status {
-                case .readyToPlay:
-                    wasReady = true
-                    self.beginIfNeeded()
-                case .failed where !wasReady: self.fallBack(after: item)
+                case .readyToPlay: self.beginIfNeeded()
+                case .failed where !self.didPlay: self.fallBack(after: item)
                 case .failed: self.errorMessage = Self.describe(item)
                 default: break
                 }
             }
             .store(in: &cancellables)
+
+        player.publisher(for: \.timeControlStatus)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] control in
+                guard let self, control == .playing, !self.didPlay else { return }
+                self.didPlay = true
+                self.watchdog?.cancel()
+            }
+            .store(in: &cancellables)
+
+        // A source whose stream never starts gets the same treatment as one that fails.
+        watchdog = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: Self.stallLimit * 1_000_000_000)
+            guard !Task.isCancelled, let self, !self.didPlay, let item = self.player?.currentItem else { return }
+            self.fallBack(after: item)
+        }
 
         NotificationCenter.default.publisher(for: AVPlayerItem.didPlayToEndTimeNotification, object: item)
             .receive(on: DispatchQueue.main)
@@ -142,14 +201,11 @@ final class PlaybackViewModel: ObservableObject {
         }
     }
 
-    /// Plays once the item is ready. The playlist already starts at the resume
-    /// point; seek only if AVPlayer ignored that.
+    /// Seeks to the resume point once the item can seek, then plays.
     private func beginIfNeeded() {
         guard !hasStarted, let player else { return }
         hasStarted = true
-        if !(abs(player.currentTime().seconds - resumeAt) <= 15) {   // also when the time is NaN
-            player.seek(to: CMTime(seconds: resumeAt, preferredTimescale: 600))
-        }
+        player.seek(to: CMTime(seconds: resumeAt, preferredTimescale: 600))
         player.play()
     }
 
