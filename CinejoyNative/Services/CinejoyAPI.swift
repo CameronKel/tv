@@ -5,6 +5,7 @@ enum APIError: Error, LocalizedError {
     case badResponse(Int)
     case decodingError(Error)
     case noResults
+    case unavailable(String)
     case missingConfiguration
     case wasmMissing
     case wasmNoMemory
@@ -16,6 +17,7 @@ enum APIError: Error, LocalizedError {
         case .badResponse(let code): return "Server responded with \(code)"
         case .decodingError(let e): return "Decoding failed: \(e.localizedDescription)"
         case .noResults: return "No stream URL found"
+        case .unavailable(let reason): return "Not available to stream right now (\(reason))"
         case .missingConfiguration: return "TMDB_API_KEY not set in Info.plist"
         case .wasmMissing: return "crush.wasm not found in app bundle"
         case .wasmNoMemory: return "crush.wasm has no exported memory"
@@ -77,24 +79,5 @@ final class CinejoyAPI: @unchecked Sendable {
         let (data, _) = try await session.data(for: URLRequest(url: url, timeoutInterval: Self.timeout))
         struct ExternalIDs: Codable { let imdb_id: String? }
         return try JSONDecoder().decode(ExternalIDs.self, from: data).imdb_id ?? ""
-    }
-
-    // MARK: - Stream URL (native, no proxy)
-    func resolveMovieStreamURL(
-        tmdbID: Int, imdbID: String, year: String, title: String
-    ) async throws -> URL {
-        try await NativeStreamResolver.resolveMovieStreamURL(
-            tmdbID: tmdbID, imdbID: imdbID, year: year, title: title
-        )
-    }
-
-    func resolveTVStreamURL(
-        tmdbID: Int, imdbID: String, year: String, title: String,
-        season: Int, episode: Int
-    ) async throws -> URL {
-        try await NativeStreamResolver.resolveTVStreamURL(
-            tmdbID: tmdbID, imdbID: imdbID, year: year, title: title,
-            season: season, episode: episode
-        )
     }
 }

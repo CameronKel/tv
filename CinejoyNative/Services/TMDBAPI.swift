@@ -63,24 +63,18 @@ extension CinejoyAPI {
     }
 
     /// Looks up the IMDB id the resolver needs (cached once the detail page has
-    /// loaded) and resolves the stream.
-    func streamURL(for media: MovieInfo, season: Int?, episode: Int?) async throws -> URL {
+    /// loaded) and resolves the stream from the first of `sources` that has it.
+    func stream(for media: MovieInfo, season: Int?, episode: Int?,
+                sources: [String] = NativeStreamResolver.sources) async throws -> NativeStreamResolver.Resolved {
         var imdb = IMDBIDCache.shared[media.id] ?? ""
         if imdb.isEmpty {
             imdb = (try? await fetchIMDBID(tmdbID: media.tmdbID, mediaType: media.isTV ? "tv" : "movie")) ?? ""
             if !imdb.isEmpty { IMDBIDCache.shared[media.id] = imdb }
         }
-        let year = media.year ?? ""
-        let title = media.displayName
-
-        if media.isTV {
-            return try await resolveTVStreamURL(
-                tmdbID: media.tmdbID, imdbID: imdb, year: year, title: title,
-                season: season ?? 1, episode: episode ?? 1
-            )
-        }
-        return try await resolveMovieStreamURL(
-            tmdbID: media.tmdbID, imdbID: imdb, year: year, title: title
+        return try await NativeStreamResolver.resolve(
+            tmdbID: media.tmdbID, imdbID: imdb, year: media.year ?? "", title: media.displayName,
+            season: media.isTV ? (season ?? 1) : nil, episode: media.isTV ? (episode ?? 1) : nil,
+            sources: sources
         )
     }
 }
