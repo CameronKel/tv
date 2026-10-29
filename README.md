@@ -26,6 +26,17 @@ HLSResourceLoader (AVAssetResourceLoaderDelegate)
 AVPlayer plays fMP4 HLS
 ```
 
+## App
+
+- **Home**: featured title, Continue Watching, Recently Watched, My List,
+  "Because you watched …", then trending and popular rows.
+- **Movies / TV Shows**: featured title, trending/popular/top-rated rows and genre rows (TMDB).
+- **Detail**: backdrop, info, Play/Resume, My List, More Like This. Shows get a
+  season picker and episode cards with progress; Play continues where you left off
+  or starts the next episode.
+- Watch progress and My List are stored on the device (`WatchHistory`, UserDefaults).
+  Long-press a Continue Watching card to open details or remove it.
+
 ## Build & sideload
 
 1. **Create a GitHub repo** and push all files.
@@ -52,4 +63,3 @@ AVPlayer plays fMP4 HLS
 - **Free Apple ID = 7-day re-sideload.** Unavoidable without paid developer account.
 - **Site can rotate `crush.wasm`** — build workflow re-downloads it each push, so a rebuild + re-sideload survives any rotation.
 - **`/g` protocol can change** — a full protocol change would need re-reverse-engineering.
-- **TV season count is hardcoded to 30** — extend in `MovieDetailView` if needed.

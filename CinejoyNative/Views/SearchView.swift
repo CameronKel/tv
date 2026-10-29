@@ -7,60 +7,24 @@ struct SearchView: View {
         NavigationStack {
             ScrollView {
                 if vm.isLoading {
-                    ProgressView("Searching…").padding(60)
+                    ProgressView().frame(maxWidth: .infinity).padding(80)
                 } else if let error = vm.errorMessage {
                     Text(error).foregroundStyle(.red).padding(60)
                 } else if vm.results.isEmpty && !vm.searchText.isEmpty {
                     Text("No results for \"\(vm.searchText)\"")
                         .foregroundStyle(.secondary).padding(60)
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 260))], spacing: 40) {
-                        ForEach(vm.results) { movie in
-                            NavigationLink(value: movie) {
-                                MoviePosterCard(movie: movie)
-                            }
-                            .buttonStyle(.card)
-                        }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), spacing: 40)], spacing: 50) {
+                        ForEach(vm.results) { PosterCard(media: $0) }
                     }
-                    .padding(50)
+                    .padding(40)
                 }
             }
-            .searchable(text: $vm.searchText, prompt: "Search movies and shows")
+            .searchable(text: $vm.searchText, prompt: "Movies and TV shows")
             .onChange(of: vm.searchText) { _ in          // single-value signature for tvOS 16
                 Task { await vm.performSearch() }
             }
-            .navigationDestination(for: MovieInfo.self) { movie in
-                MovieDetailView(movie: movie)
-            }
-            .navigationTitle("Cinejoy")
-        }
-    }
-}
-
-struct MoviePosterCard: View {
-    let movie: MovieInfo
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            AsyncImage(url: movie.posterURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(2/3, contentMode: .fill)
-                case .failure:
-                    Rectangle().fill(.gray.opacity(0.3))
-                        .overlay(Image(systemName: "film").font(.largeTitle))
-                default:
-                    Rectangle().fill(.gray.opacity(0.2))
-                        .overlay(ProgressView())
-                }
-            }
-            .frame(width: 260, height: 390)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-
-            Text(movie.displayTitle)
-                .font(.headline)
-                .lineLimit(2)
-                .frame(width: 260, alignment: .leading)
+            .mediaDestinations()
         }
     }
 }
