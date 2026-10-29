@@ -1,23 +1,47 @@
 name: CinejoyNative
-# ... (options and settings remain the same)
+options:
+  bundleIdPrefix: com.yourname.cinejoynative
+  deploymentTarget:
+    tvOS: "16.0"
+  createIntermediateGroups: true
 
 packages:
   WasmKit:
     url: https://github.com/swiftwasm/WasmKit.git
     from: "0.1.0"
-  swift-system: # Explicitly add the dependency
+  swift-system:
     url: https://github.com/apple/swift-system.git
-    exactVersion: "1.5.0" # Pin to a version compatible with WasmKit
+    exactVersion: "1.5.0"
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
 
 targets:
   CinejoyNative:
     type: application
     platform: tvOS
-    # ... (sources and resources remain the same)
+    sources:
+      - path: CinejoyNative
+        excludes:
+          - "Info.plist"
+          - "Resources/crush.wasm"
+    resources:
+      - path: CinejoyNative/Resources
+        optional: true
     dependencies:
       - package: WasmKit
-      - package: swift-system # Link the explicit dependency
+      - package: swift-system
         product: SystemPackage
     settings:
       base:
-        # ... (your bundle ID and build settings)
+        PRODUCT_BUNDLE_IDENTIFIER: com.yourname.cinejoynative
+        INFOPLIST_FILE: CinejoyNative/Info.plist
+        TARGETED_DEVICE_FAMILY: "3"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon"
+        SWIFT_OPTIMIZATION_LEVEL: "-O"
