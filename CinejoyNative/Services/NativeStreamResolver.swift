@@ -165,15 +165,18 @@ enum NativeStreamResolver {
         runtimeLock.lock()
         defer { runtimeLock.unlock() }
         if let i = cachedInstance, let s = cachedStore { return (i, s) }
-
+    
         guard let url = Bundle.main.url(forResource: "crush", withExtension: "wasm"),
               let data = try? Data(contentsOf: url) else {
             throw APIError.missingConfiguration
         }
+    
+        // --- FIX: Use parseWasm(bytes:) instead of Module(engine:bytes:) ---
         let engine = Engine()
         let store = Store(engine: engine)
-        let module = try Module(engine: engine, bytes: Array(data))
+        let module = try parseWasm(bytes: Array(data))
         let instance = try module.instantiate(store: store)
+    
         cachedStore = store
         cachedInstance = instance
         return (instance, store)
