@@ -25,9 +25,8 @@ targets:
         excludes:
           - "Info.plist"
           - "Resources/crush.wasm"
-    resources:
-      - path: CinejoyNative/Resources
-        optional: true
+      - path: CinejoyNative/Resources/crush.wasm
+        buildPhase: resources
     dependencies:
       - package: WasmKit
     settings:

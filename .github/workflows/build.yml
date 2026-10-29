@@ -70,6 +70,12 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM=""
 
+      - name: Verify crush.wasm is bundled
+        run: |
+          APP_PATH=$(find "$RUNNER_TEMP/CinejoyNative.xcarchive/Products/Applications" -name "*.app" -maxdepth 1 | head -n 1)
+          test -s "$APP_PATH/crush.wasm" || { echo "crush.wasm missing from app bundle"; ls "$APP_PATH"; exit 1; }
+          echo "crush.wasm bundled: $(wc -c < "$APP_PATH/crush.wasm") bytes"
+
       - name: Package unsigned .ipa
         run: |
           APP_PATH=$(find "$RUNNER_TEMP/CinejoyNative.xcarchive/Products/Applications" -name "*.app" -maxdepth 1 | head -n 1)
