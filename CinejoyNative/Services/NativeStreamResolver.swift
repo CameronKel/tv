@@ -3,15 +3,6 @@ import CryptoKit
 import WasmKit
 import Security
 
-/// Seals a request via the bundled crush.wasm, POSTs to api.wing.st/g,
-/// and AES-GCM-decrypts the response to extract the stream URL.
-///
-/// Protocol (reverse-engineered):
-///   plaintext  = {"path":"/Nebula/movie|series","payload":{...}}
-///   seal       = (in, in_len, ctx(44B), 44, out, out_cap) -> out_len
-///   output     = [0:98]=header (AES key at [0:32]) | [98:]=wire
-///   POST wire  = 200 OK, 203 bytes: [IV 12B][ct..][tag 16B]
-///   decrypt    = AES-256-GCM with key=header[0:32], IV=resp[0:12], AAD=81B
 enum NativeStreamResolver {
 
     private static let runtimeLock = NSLock()
@@ -55,7 +46,7 @@ enum NativeStreamResolver {
         return try await sealPostDecrypt(plaintext: plaintext)
     }
 
-    // MARK: - Plaintext builder (field order matters to the server)
+    // MARK: - Plaintext builder
 
     private static func buildPlaintext(
         path: String,
@@ -74,7 +65,7 @@ enum NativeStreamResolver {
         return Data(json.utf8)
     }
 
-    // MARK: - Seal → POST → decrypt → extract
+    // MARK: - Seal → POST → decrypt
 
     private static func sealPostDecrypt(plaintext: Data) async throws -> URL {
         let (header, wire) = try seal(plaintext: plaintext)
@@ -116,11 +107,12 @@ enum NativeStreamResolver {
         return url
     }
 
-    // MARK: - WASM seal
+    // MARK: - WASM seal (WasmKit 0.0.8)
 
     private static func seal(plaintext: Data) throws -> (header: Data, wire: Data) {
-        let (instance, _) = try getOrCreateInstance()
+        let instance = try getOrCreateInstance()
         let exports = instance.exports
+
         guard let memory = exports[memory: "memory"],
               let alloc = exports[function: "alloc"],
               let sealFn = exports[function: "seal_request"] else {
@@ -139,7 +131,9 @@ enum NativeStreamResolver {
         let inPtr = try alloc([.i32(inLen)])[0].i32
         let ctxPtr = try alloc([.i32(ctxLen)])[0].i32
         let outPtr = try alloc([.i32(outCap)])[0].i32
-        guard inPtr > 0, ctxPtr > 0, outPtr > 0 else { throw APIError.missingConfiguration }
+        guard inPtr > 0, ctxPtr > 0, outPtr > 0 else {
+            throw APIError.missingConfiguration
+        }
 
         writeMemory(memory, ptr: inPtr, data: plaintext)
         writeMemory(memory, ptr: ctxPtr, data: ctx)
@@ -161,44 +155,37 @@ enum NativeStreamResolver {
         return (output.prefix(98), output.suffix(from: 98))
     }
 
-    private static func getOrCreateInstance() throws -> (Instance, Store) {
+    private static func getOrCreateInstance() throws -> Instance {
         runtimeLock.lock()
         defer { runtimeLock.unlock() }
-        if let i = cachedInstance, let s = cachedStore { return (i, s) }
-    
+        if let i = cachedInstance { return i }
+
         guard let url = Bundle.main.url(forResource: "crush", withExtension: "wasm"),
               let data = try? Data(contentsOf: url) else {
             throw APIError.missingConfiguration
         }
-    
-        // --- FIX: Use parseWasm(bytes:) instead of Module(engine:bytes:) ---
         let engine = Engine()
         let store = Store(engine: engine)
         let module = try parseWasm(bytes: Array(data))
-        let instance = try module.instantiate(store: store)
-    
+        let instance = try module.instantiate(store: store, imports: [:])
+
         cachedStore = store
         cachedInstance = instance
-        return (instance, store)
+        return instance
     }
 
     private static func writeMemory(_ memory: Memory, ptr: UInt32, data: Data) {
-        let buf = memory.data
         let base = Int(ptr)
-        data.withUnsafeBytes { raw in
-            let src = raw.bindMemory(to: UInt8.self)
-            for i in 0..<data.count { buf[base + i] = src[i] }
+        var mem = memory.data
+        for (i, byte) in data.enumerated() {
+            mem[base + i] = byte
         }
+        memory.data = mem
     }
 
     private static func readMemory(_ memory: Memory, ptr: UInt32, len: Int) -> Data {
-        let buf = memory.data
         let base = Int(ptr)
-        var out = Data(count: len)
-        out.withUnsafeMutableBytes { raw in
-            let dst = raw.bindMemory(to: UInt8.self)
-            for i in 0..<len { dst[i] = buf[base + i] }
-        }
-        return out
+        let mem = memory.data
+        return Data(mem[base..<(base + len)])
     }
 }
