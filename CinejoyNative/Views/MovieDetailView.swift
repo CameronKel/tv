@@ -24,11 +24,9 @@ struct MovieDetailView: View {
         .task { await loadDetails() }
         .fullScreenCover(isPresented: $showPlayer) {
             if let player = playback.player {
-                PlayerView(player: player).ignoresSafeArea()
+                PlayerView(player: player, errorMessage: playback.errorMessage)
+                    .ignoresSafeArea()
             }
-        }
-        .onChange(of: playback.errorMessage) { message in
-            if message != nil { showPlayer = false }
         }
         .alert("Playback Error",
                isPresented: .init(
