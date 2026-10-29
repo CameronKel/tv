@@ -112,9 +112,10 @@ enum NativeStreamResolver {
     private static func seal(plaintext: Data) throws -> (header: Data, wire: Data) {
         let (runtime, instance) = try getOrCreateInstance()
 
-        guard let memory = try runtime.getExport(instance, name: "memory") as? Memory else {
+        guard case let .memory(memoryAddress)? = instance.export("memory") else {
             throw APIError.missingConfiguration
         }
+        let memory = runtime.store.memory(at: memoryAddress)
 
         var ctx = Data(count: 44)
         _ = ctx.withUnsafeMutableBytes { ptr in
@@ -139,8 +140,16 @@ enum NativeStreamResolver {
             throw APIError.missingConfiguration
         }
 
-        writeMemory(memory, ptr: inPtr, data: plaintext)
-        writeMemory(memory, ptr: ctxPtr, data: ctx)
+        let inBase = Int(inPtr)
+        let ctxBase = Int(ctxPtr)
+        var mem = memory.data
+        for (i, byte) in plaintext.enumerated() {
+            mem[inBase + i] = byte
+        }
+        for (i, byte) in ctx.enumerated() {
+            mem[ctxBase + i] = byte
+        }
+        memory.data = mem
 
         let result = try runtime.invoke(instance, function: "seal_request", with: [
             .i32(inPtr), .i32(inLen),
@@ -155,7 +164,8 @@ enum NativeStreamResolver {
             )
         }
 
-        let output = readMemory(memory, ptr: outPtr, len: outLen)
+        let outBase = Int(outPtr)
+        let output = Data(memory.data[outBase..<(outBase + outLen)])
         return (output.prefix(98), output.suffix(from: 98))
     }
 
@@ -176,20 +186,5 @@ enum NativeStreamResolver {
         cachedRuntime = runtime
         cachedInstance = instance
         return (runtime, instance)
-    }
-
-    private static func writeMemory(_ memory: Memory, ptr: UInt32, data: Data) {
-        let base = Int(ptr)
-        var mem = memory.data
-        for (i, byte) in data.enumerated() {
-            mem[base + i] = byte
-        }
-        memory.data = mem
-    }
-
-    private static func readMemory(_ memory: Memory, ptr: UInt32, len: Int) -> Data {
-        let base = Int(ptr)
-        let mem = memory.data
-        return Data(mem[base..<(base + len)])
     }
 }
