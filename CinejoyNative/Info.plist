@@ -32,12 +32,10 @@
     </array>
     <key>NSAppTransportSecurity</key>
     <dict>
-        <key>NSAllowsLocalNetworking</key>
+        <key>NSAllowsArbitraryLoads</key>
         <true/>
     </dict>
     <key>TMDB_API_KEY</key>
     <string>REPLACE_WITH_YOUR_TMDB_V3_API_KEY</string>
-    <key>PROXY_BASE_URL</key>
-    <string>http://192.168.1.100:5000</string>
 </dict>
 </plist>
