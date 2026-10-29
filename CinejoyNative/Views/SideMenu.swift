@@ -55,7 +55,7 @@ struct SideMenu: View {
         .frame(width: isExpanded ? Self.expandedWidth : Self.collapsedWidth, alignment: .leading)
         .frame(maxHeight: .infinity)
         .background(
-            LinearGradient(colors: [.black.opacity(isExpanded ? 0.95 : 0.0), .black.opacity(isExpanded ? 0.98 : 0.75)],
+            LinearGradient(colors: [.black.opacity(isExpanded ? 0.98 : 0.75), .black.opacity(isExpanded ? 0.95 : 0.0)],
                            startPoint: .leading, endPoint: .trailing)
                 .ignoresSafeArea()
         )

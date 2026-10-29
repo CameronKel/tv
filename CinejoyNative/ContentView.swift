@@ -9,7 +9,7 @@ struct ContentView: View {
     @State private var opened: Set<AppSection> = [.home]
 
     var body: some View {
-        ZStack(alignment: .trailing) {
+        ZStack(alignment: .leading) {
             // Opened sections stay alive so each keeps its place; only the
             // selected one is shown and can take focus.
             ZStack {
@@ -19,7 +19,7 @@ struct ContentView: View {
                         .disabled(section != item)
                 }
             }
-            .padding(.trailing, SideMenu.collapsedWidth)
+            .padding(.leading, SideMenu.collapsedWidth)
             .focusSection()
 
             SideMenu(selection: $section)

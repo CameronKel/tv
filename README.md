@@ -28,7 +28,7 @@ AVPlayer plays fMP4 HLS
 
 ## App
 
-- **Navigation**: a menu down the right edge (Home, Movies, TV Shows, Search). Swipe right to
+- **Navigation**: a menu down the left edge (Home, Movies, TV Shows, Search). Swipe left to
   reach it; it widens to show names, and moving through it switches section.
 
 - **Home**: featured title, Continue Watching, Recently Watched, My List,
