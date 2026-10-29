@@ -1,0 +1,55 @@
+name: Build tvOS App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (unsigned) tvOS archive
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project CinejoyNative.xcodeproj \
+            -scheme CinejoyNative \
+            -configuration Release \
+            -sdk appletvos \
+            -destination 'generic/platform=tvOS' \
+            -archivePath "$RUNNER_TEMP/CinejoyNative.xcarchive" \
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM=""
+
+      - name: Package unsigned .ipa
+        run: |
+          APP_PATH=$(find "$RUNNER_TEMP/CinejoyNative.xcarchive/Products/Applications" -name "*.app" -maxdepth 1 | head -n 1)
+          echo "Found app at: $APP_PATH"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP_PATH" "$RUNNER_TEMP/ipa/Payload/"
+          cd "$RUNNER_TEMP/ipa"
+          zip -r CinejoyNative.ipa Payload
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CinejoyNative-unsigned-ipa
+          path: ${{ runner.temp }}/ipa/CinejoyNative.ipa
+          retention-days: 30
