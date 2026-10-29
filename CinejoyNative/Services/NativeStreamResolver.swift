@@ -6,8 +6,8 @@ import Security
 enum NativeStreamResolver {
 
     private static let runtimeLock = NSLock()
-    private static var cachedStore: Store?
-    private static var cachedInstance: Instance?
+    private static var cachedRuntime: Runtime?
+    private static var cachedInstance: ModuleInstance?
 
     // MARK: - Public entry points
 
@@ -110,12 +110,9 @@ enum NativeStreamResolver {
     // MARK: - WASM seal (WasmKit 0.0.8)
 
     private static func seal(plaintext: Data) throws -> (header: Data, wire: Data) {
-        let instance = try getOrCreateInstance()
-        let exports = instance.exports
+        let (runtime, instance) = try getOrCreateInstance()
 
-        guard let memory = exports[memory: "memory"],
-              let alloc = exports[function: "alloc"],
-              let sealFn = exports[function: "seal_request"] else {
+        guard let memory = try runtime.getExport(instance, name: "memory") as? Memory else {
             throw APIError.missingConfiguration
         }
 
@@ -128,9 +125,16 @@ enum NativeStreamResolver {
         let ctxLen: UInt32 = 44
         let outCap: UInt32 = 4096
 
-        let inPtr = try alloc([.i32(inLen)])[0].i32
-        let ctxPtr = try alloc([.i32(ctxLen)])[0].i32
-        let outPtr = try alloc([.i32(outCap)])[0].i32
+        let inPtr = try runtime.invoke(
+            instance, function: "alloc", with: [.i32(inLen)]
+        )[0].i32
+        let ctxPtr = try runtime.invoke(
+            instance, function: "alloc", with: [.i32(ctxLen)]
+        )[0].i32
+        let outPtr = try runtime.invoke(
+            instance, function: "alloc", with: [.i32(outCap)]
+        )[0].i32
+
         guard inPtr > 0, ctxPtr > 0, outPtr > 0 else {
             throw APIError.missingConfiguration
         }
@@ -138,7 +142,7 @@ enum NativeStreamResolver {
         writeMemory(memory, ptr: inPtr, data: plaintext)
         writeMemory(memory, ptr: ctxPtr, data: ctx)
 
-        let result = try sealFn([
+        let result = try runtime.invoke(instance, function: "seal_request", with: [
             .i32(inPtr), .i32(inLen),
             .i32(ctxPtr), .i32(ctxLen),
             .i32(outPtr), .i32(outCap),
@@ -155,23 +159,23 @@ enum NativeStreamResolver {
         return (output.prefix(98), output.suffix(from: 98))
     }
 
-    private static func getOrCreateInstance() throws -> Instance {
+    private static func getOrCreateInstance() throws -> (Runtime, ModuleInstance) {
         runtimeLock.lock()
         defer { runtimeLock.unlock() }
-        if let i = cachedInstance { return i }
+        if let r = cachedRuntime, let i = cachedInstance { return (r, i) }
 
         guard let url = Bundle.main.url(forResource: "crush", withExtension: "wasm"),
               let data = try? Data(contentsOf: url) else {
             throw APIError.missingConfiguration
         }
-        let engine = Engine()
-        let store = Store(engine: engine)
-        let module = try parseWasm(bytes: Array(data))
-        let instance = try module.instantiate(store: store, imports: [:])
 
-        cachedStore = store
+        let module = try parseWasm(bytes: Array(data))
+        let runtime = Runtime()
+        let instance = try runtime.instantiate(module: module)
+
+        cachedRuntime = runtime
         cachedInstance = instance
-        return instance
+        return (runtime, instance)
     }
 
     private static func writeMemory(_ memory: Memory, ptr: UInt32, data: Data) {
