@@ -52,10 +52,10 @@ AVPlayer plays fMP4 HLS
 
 | Layer | Status |
 |---|---|
-| Movie pipeline (`/Nebula/movie`) | ✅ Verified end-to-end |
-| TV pipeline (`/Nebula/series` + season/episode) | ✅ Verified end-to-end |
+| Sources | `/<source>/movie` and `/<source>/series`, tried in order: `secret` (most titles, up to 4K HDR), `Nebula` (1080p), then `Lisbon`, `Athens`, `Solara`. `api.wing.st/servers` lists them. If the player rejects a stream before it starts, the next source is tried |
+| Movie and TV pipelines | ✅ Verified end-to-end on `secret` and `Nebula` |
 | HLS content-type fix (`image/jpeg` spoofing) | Handled by `HLSResourceLoader` (playlists only; segments load directly) |
-| `api.wing.st/info` for detail view | ✅ |
+| IMDB id for the resolver | TMDB `external_ids` (fetched with the detail page, cached per launch). `api.wing.st/info` returns 502, so it is no longer used |
 | TMDB search + fallback IMDB via `external_ids` | ✅ |
 
 ## Known caveats

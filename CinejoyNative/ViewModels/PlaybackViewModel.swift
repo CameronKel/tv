@@ -16,12 +16,16 @@ final class PlaybackViewModel: ObservableObject {
         let season: Int?
         let episode: Int?
         let episodeTitle: String?
+        let id = UUID()
     }
 
     private var request: Request?
     private var nextEpisode: (season: Int, episode: Int)?
     private var resumeAt: Double = 0
     private var hasStarted = false
+    /// Sources not yet tried for this request, so a stream the player rejects
+    /// can fall back to the next one.
+    private var untriedSources: [String] = []
     private var timeObserver: Any?
     private var cancellables = Set<AnyCancellable>()
     private var loadTask: Task<Void, Never>?
@@ -39,20 +43,42 @@ final class PlaybackViewModel: ObservableObject {
         nowPlayingTitle = Self.title(media: media, season: season, episode: episode, episodeTitle: episodeTitle)
         errorMessage = nil
         isPresented = true
+        untriedSources = NativeStreamResolver.sources
 
+        let requestID = request?.id
         loadTask = Task { [weak self] in
-            do {
-                async let next = Self.lookUpNext(media: media, season: season, episode: episode)
-                let url = try await CinejoyAPI.shared.streamURL(for: media, season: season, episode: episode)
-                let upNext = await next
-                guard let self, !Task.isCancelled else { return }
-                self.nextEpisode = upNext
-                self.start(url)
-            } catch {
-                guard let self, !Task.isCancelled else { return }
-                self.errorMessage = error.localizedDescription
-            }
+            async let next = Self.lookUpNext(media: media, season: season, episode: episode)
+            await self?.resolveAndStart()
+            let upNext = await next
+            guard let self, self.request?.id == requestID else { return }
+            self.nextEpisode = upNext
         }
+    }
+
+    /// Resolves the request from the first untried source that has it, and plays it.
+    private func resolveAndStart() async {
+        guard let request else { return }
+        do {
+            let resolved = try await CinejoyAPI.shared.stream(
+                for: request.media, season: request.season, episode: request.episode,
+                sources: untriedSources)
+            guard !Task.isCancelled else { return }
+            untriedSources = Array(untriedSources.drop { $0 != resolved.source }.dropFirst())
+            start(resolved.url)
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// The player rejected the stream before it ever played: try the next source.
+    private func fallBack(after item: AVPlayerItem) {
+        guard !untriedSources.isEmpty, player?.currentItem === item else {
+            errorMessage = Self.describe(item)
+            return
+        }
+        tearDownPlayer()
+        loadTask = Task { [weak self] in await self?.resolveAndStart() }
     }
 
     /// Saves progress and tears the player down. Called when the player is dismissed.
@@ -60,29 +86,38 @@ final class PlaybackViewModel: ObservableObject {
         loadTask?.cancel()
         loadTask = nil
         saveProgress()
+        tearDownPlayer()
+        request = nil
+        nextEpisode = nil
+        untriedSources = []
+    }
+
+    private func tearDownPlayer() {
         if let timeObserver { player?.removeTimeObserver(timeObserver) }
         timeObserver = nil
         cancellables.removeAll()
         player?.pause()
         player = nil
-        request = nil
-        nextEpisode = nil
         hasStarted = false
     }
 
     // MARK: - Playback
 
     private func start(_ url: URL) {
-        let item = AVPlayerItem(asset: HLSResourceLoader.asset(for: url))
+        let item = AVPlayerItem(asset: HLSResourceLoader.asset(for: url, startingAt: resumeAt))
         item.externalMetadata = metadata()
         let player = AVPlayer(playerItem: item)
 
+        var wasReady = false
         item.publisher(for: \.status)
             .receive(on: DispatchQueue.main)
             .sink { [weak self, weak item] status in
                 guard let self, let item else { return }
                 switch status {
-                case .readyToPlay: self.beginIfNeeded()
+                case .readyToPlay:
+                    wasReady = true
+                    self.beginIfNeeded()
+                case .failed where !wasReady: self.fallBack(after: item)
                 case .failed: self.errorMessage = Self.describe(item)
                 default: break
                 }
@@ -107,11 +142,14 @@ final class PlaybackViewModel: ObservableObject {
         }
     }
 
-    /// Seeks to the resume point once the item can seek, then plays.
+    /// Plays once the item is ready. The playlist already starts at the resume
+    /// point; seek only if AVPlayer ignored that.
     private func beginIfNeeded() {
         guard !hasStarted, let player else { return }
         hasStarted = true
-        player.seek(to: CMTime(seconds: resumeAt, preferredTimescale: 600))
+        if !(abs(player.currentTime().seconds - resumeAt) <= 15) {   // also when the time is NaN
+            player.seek(to: CMTime(seconds: resumeAt, preferredTimescale: 600))
+        }
         player.play()
     }
 

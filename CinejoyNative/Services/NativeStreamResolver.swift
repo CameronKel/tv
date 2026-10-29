@@ -9,41 +9,48 @@ enum NativeStreamResolver {
     private static var cachedRuntime: Runtime?
     private static var cachedInstance: ModuleInstance?
 
-    // MARK: - Public entry points
+    // MARK: - Public entry point
 
-    static func resolveMovieStreamURL(
-        tmdbID: Int, imdbID: String, year: String, title: String
-    ) async throws -> URL {
-        let plaintext = try buildPlaintext(
-            path: "/Nebula/movie",
-            fields: [
-                "tmdb": String(tmdbID),
-                "imdb": imdbID,
-                "year": year,
-                "title": title,
-            ],
-            fieldOrder: ["tmdb", "imdb", "year", "title"]
-        )
-        return try await sealPostDecrypt(plaintext: plaintext)
+    /// Stream sources, best first, as `api.wing.st/servers` names them.
+    /// `secret` carries the most titles and has 4K; Nebula tops out at 1080p
+    /// and lacks some older films; the rest are fallbacks that are often down.
+    static let sources = ["secret", "Nebula", "Lisbon", "Athens", "Solara"]
+
+    struct Resolved {
+        let url: URL
+        let source: String
     }
 
-    static func resolveTVStreamURL(
+    /// Asks each source in turn and returns the first stream found. Pass a
+    /// movie with no season/episode, or a show's episode with both.
+    static func resolve(
         tmdbID: Int, imdbID: String, year: String, title: String,
-        season: Int, episode: Int
-    ) async throws -> URL {
-        let plaintext = try buildPlaintext(
-            path: "/Nebula/series",
-            fields: [
-                "tmdb": String(tmdbID),
-                "season": String(season),
-                "episode": String(episode),
-                "imdb": imdbID,
-                "year": year,
-                "title": title,
-            ],
-            fieldOrder: ["tmdb", "season", "episode", "imdb", "year", "title"]
-        )
-        return try await sealPostDecrypt(plaintext: plaintext)
+        season: Int? = nil, episode: Int? = nil,
+        sources: [String] = NativeStreamResolver.sources
+    ) async throws -> Resolved {
+        var fields = ["tmdb": String(tmdbID), "imdb": imdbID, "year": year, "title": title]
+        var order = ["tmdb", "imdb", "year", "title"]
+        if let season, let episode {
+            fields["season"] = String(season)
+            fields["episode"] = String(episode)
+            order = ["tmdb", "season", "episode", "imdb", "year", "title"]
+        }
+        let kind = season == nil ? "movie" : "series"
+
+        // The best source's reason is the useful one ("title not carried").
+        var firstError: Error?
+        for source in sources {
+            try Task.checkCancellation()
+            do {
+                let plaintext = try buildPlaintext(path: "/\(source)/\(kind)", fields: fields, fieldOrder: order)
+                return Resolved(url: try await sealPostDecrypt(plaintext: plaintext), source: source)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                firstError = firstError ?? error
+            }
+        }
+        throw firstError ?? APIError.noResults
     }
 
     // MARK: - Plaintext builder
@@ -74,7 +81,7 @@ enum NativeStreamResolver {
         req.httpMethod = "POST"
         req.httpBody = wire
         req.setValue("text/plain;charset=UTF-8", forHTTPHeaderField: "Content-Type")
-        req.timeoutInterval = 30
+        req.timeoutInterval = CinejoyAPI.timeout
 
         let (respData, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse else { throw APIError.badResponse(-1) }
@@ -98,8 +105,13 @@ enum NativeStreamResolver {
         let plaintextResp = try AES.GCM.open(sealedBox, using: symmetric, authenticating: aad)
 
         guard let json = try JSONSerialization.jsonObject(with: plaintextResp) as? [String: Any],
-              let data = json["data"] as? [String: Any],
-              let streams = data["stream"] as? [[String: Any]],
+              let data = json["data"] as? [String: Any] else {
+            throw APIError.noResults
+        }
+        if let message = data["error"] as? String {
+            throw APIError.unavailable(message)
+        }
+        guard let streams = data["stream"] as? [[String: Any]],
               let playlist = streams.first?["playlist"] as? String,
               let url = URL(string: playlist) else {
             throw APIError.noResults
