@@ -73,7 +73,7 @@ final class PlaybackViewModel: ObservableObject {
     // MARK: - Playback
 
     private func start(_ url: URL) {
-        let item = AVPlayerItem(asset: HLSResourceLoader.asset(for: url))
+        let item = AVPlayerItem(asset: HLSResourceLoader.asset(for: url, startingAt: resumeAt))
         item.externalMetadata = metadata()
         let player = AVPlayer(playerItem: item)
 
@@ -107,11 +107,14 @@ final class PlaybackViewModel: ObservableObject {
         }
     }
 
-    /// Seeks to the resume point once the item can seek, then plays.
+    /// Plays once the item is ready. The playlist already starts at the resume
+    /// point; seek only if AVPlayer ignored that.
     private func beginIfNeeded() {
         guard !hasStarted, let player else { return }
         hasStarted = true
-        player.seek(to: CMTime(seconds: resumeAt, preferredTimescale: 600))
+        if !(abs(player.currentTime().seconds - resumeAt) <= 15) {   // also when the time is NaN
+            player.seek(to: CMTime(seconds: resumeAt, preferredTimescale: 600))
+        }
         player.play()
     }
 

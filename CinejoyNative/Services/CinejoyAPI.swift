@@ -27,6 +27,8 @@ enum APIError: Error, LocalizedError {
 final class CinejoyAPI: @unchecked Sendable {
     static let shared = CinejoyAPI()
     let session = URLSession.shared
+    /// URLSession's default is 60 s; a stalled request shouldn't hold up Play that long.
+    static let timeout: TimeInterval = 15
 
     let tmdbAPIKey: String = {
         Bundle.main.infoDictionary?["TMDB_API_KEY"] as? String ?? ""
@@ -72,32 +74,9 @@ final class CinejoyAPI: @unchecked Sendable {
         comps.queryItems = [.init(name: "api_key", value: tmdbAPIKey)]
         guard let url = comps.url else { throw APIError.badURL }
 
-        let (data, _) = try await session.data(from: url)
+        let (data, _) = try await session.data(for: URLRequest(url: url, timeoutInterval: Self.timeout))
         struct ExternalIDs: Codable { let imdb_id: String? }
         return try JSONDecoder().decode(ExternalIDs.self, from: data).imdb_id ?? ""
-    }
-
-    // MARK: - api.wing.st/info (detail view)
-    struct CinejoyInfo: Codable {
-        let title: String?
-        let year: String?
-        let imdb: String?
-        let overview: String?
-        let poster: String?
-        let backdrop: String?
-        let runtime: Int?
-        let genres: [String]?
-    }
-
-    func fetchInfo(tmdbID: Int, mediaType: String = "movie") async throws -> CinejoyInfo {
-        var comps = URLComponents(string: "https://api.wing.st/info")!
-        comps.queryItems = [
-            .init(name: "type", value: mediaType),
-            .init(name: "tmdb", value: String(tmdbID)),
-        ]
-        guard let url = comps.url else { throw APIError.badURL }
-        let (data, _) = try await session.data(from: url)
-        return try JSONDecoder().decode(CinejoyInfo.self, from: data)
     }
 
     // MARK: - Stream URL (native, no proxy)

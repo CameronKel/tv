@@ -31,6 +31,12 @@ struct MediaDetails: Decodable {
     let genres: [Genre]?
     let seasons: [SeasonSummary]?
     let recommendations: MediaPage?
+    let externalIDs: ExternalIDs?
+
+    struct ExternalIDs: Decodable {
+        let imdbID: String?
+        enum CodingKeys: String, CodingKey { case imdbID = "imdb_id" }
+    }
 
     /// Real seasons, in order; "Specials" (season 0) only if there's nothing else.
     var playableSeasons: [SeasonSummary] {
@@ -48,6 +54,7 @@ struct MediaDetails: Decodable {
     enum CodingKeys: String, CodingKey {
         case runtime, tagline, genres, seasons, recommendations
         case numberOfSeasons = "number_of_seasons"
+        case externalIDs = "external_ids"
     }
 }
 

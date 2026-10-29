@@ -13,7 +13,7 @@ extension CinejoyAPI {
         ] + query.map { URLQueryItem(name: $0.key, value: $0.value) }
         guard let url = comps.url else { throw APIError.badURL }
 
-        let (data, resp) = try await session.data(from: url)
+        let (data, resp) = try await session.data(for: URLRequest(url: url, timeoutInterval: Self.timeout))
         if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw APIError.badResponse(http.statusCode)
         }
@@ -32,11 +32,16 @@ extension CinejoyAPI {
     }
 
     func details(for media: MovieInfo) async throws -> MediaDetails {
-        try await tmdb(
+        let details = try await tmdb(
             "\(media.isTV ? "tv" : "movie")/\(media.tmdbID)",
-            query: ["append_to_response": "recommendations"],
+            query: ["append_to_response": "recommendations,external_ids"],
             as: MediaDetails.self
         )
+        // So pressing Play on this page needs no extra lookup.
+        if let imdb = details.externalIDs?.imdbID, !imdb.isEmpty {
+            IMDBIDCache.shared[media.id] = imdb
+        }
+        return details
     }
 
     func season(showID: Int, number: Int) async throws -> SeasonDetails {
@@ -57,16 +62,16 @@ extension CinejoyAPI {
         return nil
     }
 
-    /// Looks up what the resolver needs (IMDB id, year, title) and resolves the stream.
+    /// Looks up the IMDB id the resolver needs (cached once the detail page has
+    /// loaded) and resolves the stream.
     func streamURL(for media: MovieInfo, season: Int?, episode: Int?) async throws -> URL {
-        let type = media.isTV ? "tv" : "movie"
-        let info = try? await fetchInfo(tmdbID: media.tmdbID, mediaType: type)
-        var imdb = info?.imdb ?? ""
+        var imdb = IMDBIDCache.shared[media.id] ?? ""
         if imdb.isEmpty {
-            imdb = (try? await fetchIMDBID(tmdbID: media.tmdbID, mediaType: type)) ?? ""
+            imdb = (try? await fetchIMDBID(tmdbID: media.tmdbID, mediaType: media.isTV ? "tv" : "movie")) ?? ""
+            if !imdb.isEmpty { IMDBIDCache.shared[media.id] = imdb }
         }
-        let year = String((info?.year ?? media.year ?? "").prefix(4))
-        let title = info?.title ?? media.displayName
+        let year = media.year ?? ""
+        let title = media.displayName
 
         if media.isTV {
             return try await resolveTVStreamURL(
@@ -77,5 +82,19 @@ extension CinejoyAPI {
         return try await resolveMovieStreamURL(
             tmdbID: media.tmdbID, imdbID: imdb, year: year, title: title
         )
+    }
+}
+
+/// IMDB ids by `MovieInfo.id`, for this launch. They never change, and
+/// episodes of a show share one, so each title is looked up once.
+final class IMDBIDCache: @unchecked Sendable {
+    static let shared = IMDBIDCache()
+
+    private var ids: [String: String] = [:]
+    private let lock = NSLock()
+
+    subscript(id: String) -> String? {
+        get { lock.lock(); defer { lock.unlock() }; return ids[id] }
+        set { lock.lock(); defer { lock.unlock() }; ids[id] = newValue }
     }
 }

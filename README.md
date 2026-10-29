@@ -55,7 +55,7 @@ AVPlayer plays fMP4 HLS
 | Movie pipeline (`/Nebula/movie`) | ✅ Verified end-to-end |
 | TV pipeline (`/Nebula/series` + season/episode) | ✅ Verified end-to-end |
 | HLS content-type fix (`image/jpeg` spoofing) | Handled by `HLSResourceLoader` (playlists only; segments load directly) |
-| `api.wing.st/info` for detail view | ✅ |
+| IMDB id for the resolver | TMDB `external_ids` (fetched with the detail page, cached per launch). `api.wing.st/info` returns 502, so it is no longer used |
 | TMDB search + fallback IMDB via `external_ids` | ✅ |
 
 ## Known caveats
