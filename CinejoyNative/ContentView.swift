@@ -18,6 +18,7 @@ struct ContentView: View {
         .environmentObject(playback)
         .environmentObject(history)
         .preferredColorScheme(.dark)
+        .task { await SearchIndex.shared.warmUp() }
         .fullScreenCover(isPresented: $playback.isPresented, onDismiss: { playback.stop() }) {
             PlayerScreen().environmentObject(playback)
         }

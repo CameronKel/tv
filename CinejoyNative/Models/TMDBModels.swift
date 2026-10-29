@@ -40,9 +40,9 @@ struct MediaDetails: Decodable {
     }
 
     func recommended(as type: String?) -> [MovieInfo] {
-        (recommendations?.results ?? [])
+        MovieInfo.byPopularity((recommendations?.results ?? [])
             .map { $0.withMediaType(type) }
-            .filter { $0.posterPath != nil }
+            .filter { $0.posterPath != nil })
     }
 
     enum CodingKeys: String, CodingKey {

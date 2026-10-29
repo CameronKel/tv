@@ -33,37 +33,33 @@ final class CinejoyAPI: @unchecked Sendable {
     }()
 
     // MARK: - TMDB search
+    /// TMDB matches whole words and ranks by text match, so "break" never
+    /// finds Breaking Bad. Merge word-prefix matches from the local index of
+    /// well-known titles with two pages of TMDB results, most popular first.
     func search(query: String) async throws -> [MovieInfo] {
-        guard !tmdbAPIKey.isEmpty,
-              tmdbAPIKey != "REPLACE_WITH_YOUR_TMDB_V3_API_KEY" else {
-            throw APIError.missingConfiguration
-        }
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return [] }
 
-        var comps = URLComponents(string: "https://api.themoviedb.org/3/search/multi")!
-        comps.queryItems = [
-            .init(name: "api_key", value: tmdbAPIKey),
-            .init(name: "query", value: trimmed),
-            .init(name: "include_adult", value: "false"),
-            .init(name: "language", value: "en-US"),
-            .init(name: "page", value: "1"),
-        ]
-        guard let url = comps.url else { throw APIError.badURL }
-
-        let (data, resp) = try await session.data(from: url)
-        guard let http = resp as? HTTPURLResponse else { throw APIError.badResponse(-1) }
-        guard (200..<300).contains(http.statusCode) else { throw APIError.badResponse(http.statusCode) }
-
-        struct SearchResponse: Codable { let results: [MovieInfo] }
-        do {
-            let decoded = try JSONDecoder().decode(SearchResponse.self, from: data)
-            return decoded.results.filter {
-                $0.mediaType == "movie" || $0.mediaType == "tv"
-            }
-        } catch {
-            throw APIError.decodingError(error)
+        func page(_ n: Int) async throws -> [MovieInfo] {
+            try await list("search/multi", query: [
+                "query": trimmed, "include_adult": "false", "page": String(n),
+            ])
         }
+        async let local = SearchIndex.shared.matches(trimmed)
+        async let first = page(1)
+        async let second = page(2)
+
+        let known = await local
+        var remote: [MovieInfo] = []
+        do {
+            remote = try await first
+        } catch {
+            if known.isEmpty { throw error }
+        }
+        remote += (try? await second) ?? []
+
+        var seen = Set<String>()
+        return MovieInfo.byPopularity((known + remote).filter { seen.insert($0.id).inserted })
     }
 
     // MARK: - IMDB ID from TMDB external_ids

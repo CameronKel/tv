@@ -54,7 +54,7 @@ final class RecommendationsModel: ObservableObject {
             let type = seed.isTV ? "tv" : "movie"
             guard let items = try? await CinejoyAPI.shared.list(
                 "\(type)/\(seed.tmdbID)/recommendations", mediaType: type) else { continue }
-            let fresh = items.filter { !watched.contains($0.id) }
+            let fresh = MovieInfo.byPopularity(items.filter { !watched.contains($0.id) })
             if !fresh.isEmpty {
                 result.append(Shelf(id: "rec-\(seed.id)",
                                     title: "Because you watched \(seed.displayName)", items: fresh))

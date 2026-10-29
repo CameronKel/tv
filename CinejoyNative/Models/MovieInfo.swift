@@ -12,6 +12,7 @@ struct MovieInfo: Identifiable, Hashable, Codable {
     var firstAirDate: String?
     var mediaType: String?
     var voteAverage: Double?
+    var popularity: Double?
 
     /// Movies and shows share TMDB id space, so the type is part of the id.
     var id: String { "\(mediaType ?? "movie")-\(tmdbID)" }
@@ -41,6 +42,11 @@ struct MovieInfo: Identifiable, Hashable, Codable {
         return copy
     }
 
+    /// Most popular first; TMDB ranks search and recommendations by other things.
+    static func byPopularity(_ items: [MovieInfo]) -> [MovieInfo] {
+        items.sorted { ($0.popularity ?? 0) > ($1.popularity ?? 0) }
+    }
+
     enum CodingKeys: String, CodingKey {
         case tmdbID = "id"
         case title, name, overview
@@ -50,6 +56,7 @@ struct MovieInfo: Identifiable, Hashable, Codable {
         case firstAirDate = "first_air_date"
         case mediaType = "media_type"
         case voteAverage = "vote_average"
+        case popularity
     }
 }
 
