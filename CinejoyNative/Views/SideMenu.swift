@@ -93,25 +93,25 @@ private struct SideMenuLabel: View {
 /// A rounded highlight that follows focus, instead of the default lifted card.
 private struct SideMenuButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        Body(configuration: configuration)
+        SideMenuButtonBody(configuration: configuration)
     }
+}
 
-    private struct Body: View {
-        let configuration: ButtonStyleConfiguration
-        @Environment(\.isFocused) private var isFocused
+private struct SideMenuButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.isFocused) private var isFocused
 
-        var body: some View {
-            configuration.label
-                .foregroundStyle(isFocused ? Color.black : Color.primary)
-                .padding(.vertical, 16)
-                .padding(.horizontal, 18)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(isFocused ? Color.white : Color.clear)
-                )
-                .scaleEffect(configuration.isPressed ? 0.96 : 1)
-                .animation(.easeOut(duration: 0.15), value: isFocused)
-        }
+    var body: some View {
+        configuration.label
+            .foregroundStyle(isFocused ? Color.black : Color.primary)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isFocused ? Color.white : Color.clear)
+            )
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.easeOut(duration: 0.15), value: isFocused)
     }
 }
