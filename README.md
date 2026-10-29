@@ -28,6 +28,9 @@ AVPlayer plays fMP4 HLS
 
 ## App
 
+- **Navigation**: a menu down the right edge (Home, Movies, TV Shows, Search). Swipe right to
+  reach it; it widens to show names, and moving through it switches section.
+
 - **Home**: featured title, Continue Watching, Recently Watched, My List,
   "Because you watched …", then trending and popular rows.
 - **Movies / TV Shows**: featured title, trending/popular/top-rated rows and genre rows (TMDB).
