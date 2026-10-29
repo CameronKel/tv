@@ -1,0 +1,10 @@
+.DS_Store
+*.xcodeproj
+*.xcworkspace
+build/
+DerivedData/
+*.ipa
+*.xcarchive
+__pycache__/
+*.pyc
+.venv/
