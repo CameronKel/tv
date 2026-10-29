@@ -21,7 +21,18 @@ final class PlaybackViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self, weak item] status in
                 guard status == .failed, let item else { return }
-                self?.errorMessage = "Stream failed: \(item.error?.localizedDescription ?? "unknown error")"
+                let err = item.error as NSError?
+                var parts = ["Stream failed: \(err?.localizedDescription ?? "unknown error")"]
+                if let err {
+                    parts.append("code \(err.domain) \(err.code)")
+                    if let under = err.userInfo[NSUnderlyingErrorKey] as? NSError {
+                        parts.append("underlying \(under.domain) \(under.code): \(under.localizedDescription)")
+                    }
+                }
+                if let ev = item.errorLog()?.events.last {
+                    parts.append("http \(ev.errorStatusCode) \(ev.errorComment ?? "")")
+                }
+                self?.errorMessage = parts.joined(separator: "\n")
             }
         let newPlayer = AVPlayer(playerItem: item)
         self.player = newPlayer
