@@ -5,6 +5,7 @@ build/
 DerivedData/
 *.ipa
 *.xcarchive
+CinejoyNative/Resources/crush.wasm
 __pycache__/
 *.pyc
 .venv/
