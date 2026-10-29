@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
@@ -19,8 +19,40 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Download crush.wasm
+        run: |
+          mkdir -p CinejoyNative/Resources
+          curl -fsSL https://api.wing.st/crush.wasm -o CinejoyNative/Resources/crush.wasm
+          echo "crush.wasm: $(wc -c < CinejoyNative/Resources/crush.wasm) bytes"
+
+      - name: Generate placeholder app icon
+        run: |
+          mkdir -p "CinejoyNative/Assets.xcassets/App Icon.appiconset"
+          python3 - <<'EOF'
+          import struct, zlib
+          def make_png(w, h, rgb):
+              raw = b''
+              for _ in range(h):
+                  raw += b'\x00' + bytes(rgb) * w
+              def chunk(typ, data):
+                  c = typ + data
+                  return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c))
+              sig = b'\x89PNG\r\n\x1a\n'
+              ihdr = struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)
+              return sig + chunk(b'IHDR', ihdr) + chunk(b'IDAT', zlib.compress(raw, 9)) + chunk(b'IEND', b'')
+          p = 'CinejoyNative/Assets.xcassets/App Icon.appiconset/icon-1280x768.png'
+          open(p, 'wb').write(make_png(1280, 768, (26, 26, 34)))
+          print('icon written:', p)
+          EOF
+
       - name: Generate Xcode project
         run: xcodegen generate
+
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild -project CinejoyNative.xcodeproj \
+            -scheme CinejoyNative \
+            -resolvePackageDependencies
 
       - name: Build (unsigned) tvOS archive
         run: |
