@@ -27,6 +27,9 @@ struct MovieDetailView: View {
                 PlayerView(player: player).ignoresSafeArea()
             }
         }
+        .onChange(of: playback.errorMessage) { message in
+            if message != nil { showPlayer = false }
+        }
         .alert("Playback Error",
                isPresented: .init(
                    get: { playback.errorMessage != nil },

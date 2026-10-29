@@ -13,7 +13,7 @@ import AVFoundation
 final class HLSResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
 
     static let scheme = "cinejoy-hls"
-    private static let activeLoaders = NSMutableSet()
+    private static var retainKey: UInt8 = 0
 
     static func wrapped(_ url: URL) -> URL {
         var c = URLComponents(url: url, resolvingAgainstBaseURL: false)
@@ -25,12 +25,10 @@ final class HLSResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
         let asset = AVURLAsset(url: Self.wrapped(url))
         let loader = HLSResourceLoader()
         asset.resourceLoader.setDelegate(loader, queue: DispatchQueue(label: "hls.loader"))
+        // AVAssetResourceLoader only holds its delegate weakly; tie the loader's
+        // lifetime to the asset so it serves every segment, not just the manifest.
+        objc_setAssociatedObject(asset, &Self.retainKey, loader, .OBJC_ASSOCIATION_RETAIN)
         return asset
-    }
-
-    override init() {
-        super.init()
-        Self.activeLoaders.add(self)
     }
 
     func resourceLoader(_ resourceLoader: AVAssetResourceLoader,
@@ -54,9 +52,7 @@ final class HLSResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
             req.setValue("bytes=\(start)-\(end)", forHTTPHeaderField: "Range")
         }
 
-        let task = URLSession.shared.dataTask(with: req) { [weak self] data, response, error in
-            defer { if let s = self { Self.activeLoaders.remove(s) } }
-
+        let task = URLSession.shared.dataTask(with: req) { data, response, error in
             if let error = error {
                 loadingRequest.finishLoading(with: error)
                 return
@@ -79,33 +75,24 @@ final class HLSResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
             // regardless of the `.jpg` / `.png` / `.jpeg` extension.
             let realType = isManifest ? "application/vnd.apple.mpegurl" : "video/mp4"
 
-            var headers = (http.allHeaderFields as? [String: String]) ?? [:]
-            headers["Content-Type"] = realType
-            headers["Content-Length"] = String(data.count)
-            headers["Accept-Ranges"] = "bytes"
-            headers["Access-Control-Allow-Origin"] = "*"
-
-            guard let fixedResp = HTTPURLResponse(
-                url: realURL,
-                statusCode: http.statusCode,
-                httpVersion: "HTTP/1.1",
-                headerFields: headers
-            ) else {
-                loadingRequest.finishLoading(with: NSError(
-                    domain: "HLSLoader", code: -2,
-                    userInfo: [NSLocalizedDescriptionKey: "bad response"]))
-                return
+            // For a 206 the body is already the requested range; the full
+            // resource size comes from Content-Range ("bytes a-b/total").
+            var totalLength = Int64(data.count)
+            if http.statusCode == 206,
+               let range = http.value(forHTTPHeaderField: "Content-Range"),
+               let total = range.split(separator: "/").last.flatMap({ Int64($0) }) {
+                totalLength = total
             }
 
             if let ci = loadingRequest.contentInformationRequest {
                 ci.contentType = realType
-                ci.contentLength = Int64(data.count)
+                ci.contentLength = totalLength
                 ci.isByteRangeAccessSupported = true
             }
 
             if let dr = loadingRequest.dataRequest {
                 let start = Int(dr.requestedOffset)
-                if start > 0 && start < data.count {
+                if http.statusCode != 206 && start > 0 && start < data.count {
                     dr.respond(with: data.subdata(in: start..<data.count))
                 } else {
                     dr.respond(with: data)
