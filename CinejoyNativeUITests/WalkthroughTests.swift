@@ -51,30 +51,20 @@ final class WalkthroughTests: XCTestCase {
         record("back-on-home")
     }
 
-    /// Sidebar → TV Shows → a show → change season → episodes → Search.
+    /// Sidebar → Movies → TV Shows → a show → change season → episodes → Search.
     func test2SidebarAndShow() {
         wait(10)
-        press(.left, times: 3)
-        wait(1)
+        openSidebar()
         record("sidebar-open")
         press(.down)
-        wait(1)
-        record("sidebar-movies")
-        press(.down)
-        wait(1)
-        record("sidebar-tv")
-        press(.right)
-        wait(6)
-        record("tv-content")
         press(.select)
-        wait(5)
+        wait(6)
+        record("movies")
+        openShowFromTVShows()
         record("show-detail")
         press(.down)
         wait(1)
-        record("show-down1")
-        press(.down)
-        wait(1)
-        record("show-down2")
+        record("show-seasons")
         press(.right)
         press(.select)
         wait(4)
@@ -85,9 +75,7 @@ final class WalkthroughTests: XCTestCase {
         press(.menu)
         wait(2)
         record("back-from-show")
-        press(.left, times: 3)
-        wait(1)
-        record("sidebar-again")
+        openSidebar()
         press(.down, times: 3)
         press(.select)
         wait(3)
@@ -97,12 +85,7 @@ final class WalkthroughTests: XCTestCase {
     /// TV Shows → a show → Play → swipe down for the info panel → Episodes tab.
     func test3EpisodePlayer() {
         wait(10)
-        press(.left, times: 3)
-        press(.down, times: 2)
-        press(.right)
-        wait(6)
-        press(.select)
-        wait(5)
+        openShowFromTVShows()
         record("show-detail")
         press(.select)
         wait(30)
@@ -122,6 +105,26 @@ final class WalkthroughTests: XCTestCase {
         press(.menu)
         wait(2)
         record("panel-closed")
+    }
+
+    /// Opens TV Shows from the sidebar, then the first show in the first row
+    /// (the featured banner's Play would start playback instead).
+    private func openShowFromTVShows() {
+        openSidebar()
+        press(.up, times: 3)
+        press(.down, times: 2)
+        press(.select)
+        wait(6)
+        press(.down)
+        press(.select)
+        wait(5)
+    }
+
+    /// From the top of a page, Left until the sidebar has focus.
+    private func openSidebar() {
+        press(.up, times: 2)
+        press(.left, times: 3)
+        wait(1)
     }
 
     // MARK: - Helpers
