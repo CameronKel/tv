@@ -14,10 +14,10 @@ struct SearchView: View {
                     Text("No results for \"\(vm.searchText)\"")
                         .foregroundStyle(.secondary).padding(60)
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: UI.s(230)), spacing: UI.s(40))], spacing: UI.s(50)) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), spacing: 40)], spacing: 50) {
                         ForEach(vm.results) { PosterCard(media: $0) }
                     }
-                    .padding(UI.s(40))
+                    .padding(40)
                 }
             }
             .searchable(text: $vm.searchText, prompt: "Movies and TV shows")

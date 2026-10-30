@@ -17,20 +17,17 @@ struct ContentView: View {
             }
     }
 
-    /// Apple TV: the system sidebar (tvOS 18+). iPad: the floating tab bar at
-    /// the top (iPadOS 18; its sidebar style left a blank column covering the
-    /// page in landscape). Older systems: plain tabs.
+    /// The system sidebar down the left edge where tvOS has it (18 and later),
+    /// otherwise the top tab bar.
     @ViewBuilder
     private var sections: some View {
-        if #available(tvOS 18.0, iOS 18.0, *) {
+        if #available(tvOS 18.0, *) {
             TabView(selection: $section) {
                 ForEach(AppSection.allCases) { item in
                     Tab(item.title, systemImage: item.icon, value: item) { page(item) }
                 }
             }
-            #if os(tvOS)
             .tabViewStyle(.sidebarAdaptable)
-            #endif
         } else {
             TabView(selection: $section) {
                 ForEach(AppSection.allCases) { item in

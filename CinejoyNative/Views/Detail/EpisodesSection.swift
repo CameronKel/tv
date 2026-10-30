@@ -28,13 +28,13 @@ struct EpisodesSection: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, compact ? 12 : 24)
             }
-            .tvFocusSection()
+            .focusSection()
 
             if isLoading && episodes.isEmpty {
                 ProgressView().frame(maxWidth: .infinity).padding(60)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: UI.s(40)) {
+                    LazyHStack(alignment: .top, spacing: 40) {
                         ForEach(episodes) { episode in
                             EpisodeCard(media: media, season: selectedSeason ?? 1, episode: episode, compact: compact)
                         }
@@ -42,7 +42,7 @@ struct EpisodesSection: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, compact ? 20 : 36)
                 }
-                .tvFocusSection()
+                .focusSection()
             }
         }
     }
@@ -57,7 +57,7 @@ private struct SeasonButton: View {
         if isSelected {
             Button(action: action) { label }.buttonStyle(.borderedProminent)
         } else {
-            Button(action: action) { label }.secondaryAction()
+            Button(action: action) { label }
         }
     }
 
@@ -81,7 +81,7 @@ private struct EpisodeCard: View {
         let watched = progress >= WatchEntry.finishedThreshold
         let playing = playback.isPresented && playback.currentShow?.id == media.id
             && playback.currentSeason == season && playback.currentEpisode == episode.episodeNumber
-        let width: CGFloat = UI.s(compact ? 360 : 440)
+        let width: CGFloat = compact ? 360 : 440
 
         VStack(alignment: .leading, spacing: 10) {
             Button {
@@ -112,7 +112,7 @@ private struct EpisodeCard: View {
                         }
                     }
             }
-            .cardButton()
+            .buttonStyle(.card)
 
             Text("\(episode.episodeNumber). \(episode.name ?? "Episode \(episode.episodeNumber)")")
                 .font(.headline)

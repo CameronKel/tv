@@ -2,7 +2,7 @@ name: Build tvOS App
 
 on:
   push:
-    branches: [ main, 'claude/**' ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -70,36 +70,4 @@ jobs:
         with:
           name: CinejoyNative-unsigned-ipa
           path: ${{ runner.temp }}/ipa/CinejoyNative.ipa
-          retention-days: 30
-
-      - name: Build (unsigned) iPad archive
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project CinejoyNative.xcodeproj \
-            -scheme CinejoyPad \
-            -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/CinejoyPad.xcarchive" \
-            archive \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            DEVELOPMENT_TEAM=""
-
-      - name: Package unsigned iPad .ipa
-        run: |
-          APP_PATH=$(find "$RUNNER_TEMP/CinejoyPad.xcarchive/Products/Applications" -name "*.app" -maxdepth 1 | head -n 1)
-          test -s "$APP_PATH/crush.wasm" || { echo "crush.wasm missing from iPad app"; exit 1; }
-          mkdir -p "$RUNNER_TEMP/ipa-pad/Payload"
-          cp -R "$APP_PATH" "$RUNNER_TEMP/ipa-pad/Payload/"
-          cd "$RUNNER_TEMP/ipa-pad"
-          zip -qr Cinejoy-iPad.ipa Payload
-
-      - name: Upload iPad artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Cinejoy-iPad-unsigned-ipa
-          path: ${{ runner.temp }}/ipa-pad/Cinejoy-iPad.ipa
           retention-days: 30

@@ -16,7 +16,7 @@ struct MediaDetailView: View {
         ZStack(alignment: .topLeading) {
             backdrop
             ScrollView {
-                VStack(alignment: .leading, spacing: UI.s(40)) {
+                VStack(alignment: .leading, spacing: 40) {
                     header
                     if media.isTV, let seasons = details?.playableSeasons, !seasons.isEmpty {
                         EpisodesSection(media: media, seasons: seasons, selectedSeason: $selectedSeason,
@@ -55,7 +55,7 @@ struct MediaDetailView: View {
         let inList = history.isInMyList(media)
         return VStack(alignment: .leading, spacing: 20) {
             Text(media.displayName)
-                .font(.system(size: UI.s(76), weight: .bold))
+                .font(.system(size: 76, weight: .bold))
                 .lineLimit(2)
             Text(metadata)
                 .font(.callout)
@@ -67,7 +67,7 @@ struct MediaDetailView: View {
                 Text(overview)
                     .font(.callout)
                     .lineLimit(5)
-                    .frame(maxWidth: UI.s(1050), alignment: .leading)
+                    .frame(maxWidth: 1050, alignment: .leading)
             }
 
             HStack(spacing: 30) {
@@ -76,26 +76,24 @@ struct MediaDetailView: View {
                 } label: {
                     Label(target.label, systemImage: "play.fill")
                 }
-                .primaryAction()
                 Button {
                     history.toggleMyList(media)
                 } label: {
                     Label(inList ? "In My List" : "My List", systemImage: inList ? "checkmark" : "plus")
                 }
-                .secondaryAction()
             }
             .padding(.top, 16)
 
             if let entry = history.entry(for: media), !entry.isFinished, !entry.upNext, target.resumeAt > 0 {
                 HStack(spacing: 20) {
-                    ProgressBar(value: entry.progress).frame(width: UI.s(300))
+                    ProgressBar(value: entry.progress).frame(width: 300)
                     Text("\(entry.minutesLeft) min left").font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, UI.s(120))
-        .tvFocusSection()
+        .padding(.top, 120)
+        .focusSection()
     }
 
     private var playTarget: PlayTarget {
