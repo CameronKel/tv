@@ -94,6 +94,36 @@ final class WalkthroughTests: XCTestCase {
         record("search")
     }
 
+    /// TV Shows → a show → Play → swipe down for the info panel → Episodes tab.
+    func test3EpisodePlayer() {
+        wait(10)
+        press(.left, times: 3)
+        press(.down, times: 2)
+        press(.right)
+        wait(6)
+        press(.select)
+        wait(5)
+        record("show-detail")
+        press(.select)
+        wait(30)
+        record("episode-playing")
+        press(.down)
+        wait(2)
+        record("info-panel")
+        press(.right)
+        wait(2)
+        record("info-panel-right")
+        press(.right)
+        wait(2)
+        record("info-panel-right2")
+        press(.down)
+        wait(3)
+        record("episodes-tab-cards")
+        press(.menu)
+        wait(2)
+        record("panel-closed")
+    }
+
     // MARK: - Helpers
 
     private func press(_ button: XCUIRemote.Button, times: Int = 1) {
@@ -110,7 +140,8 @@ final class WalkthroughTests: XCTestCase {
 
     private func record(_ label: String) {
         step += 1
-        let prefix = "\(name.contains("test1") ? "1" : "2")-\(String(format: "%02d", step))-\(label)"
+        let test = name.contains("test1") ? "1" : name.contains("test2") ? "2" : "3"
+        let prefix = "\(test)-\(String(format: "%02d", step))-\(label)"
 
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = prefix

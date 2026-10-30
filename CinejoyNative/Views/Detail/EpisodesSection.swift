@@ -7,10 +7,12 @@ struct EpisodesSection: View {
     @Binding var selectedSeason: Int?
     let episodes: [Episode]
     let isLoading: Bool
+    /// Smaller cards without synopses and no header, for the player's Episodes tab.
+    var compact = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            RowHeader(title: "Episodes")
+            if !compact { RowHeader(title: "Episodes") }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 24) {
@@ -24,7 +26,7 @@ struct EpisodesSection: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 24)
+                .padding(.vertical, compact ? 12 : 24)
             }
             .focusSection()
 
@@ -34,11 +36,11 @@ struct EpisodesSection: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .top, spacing: 40) {
                         ForEach(episodes) { episode in
-                            EpisodeCard(media: media, season: selectedSeason ?? 1, episode: episode)
+                            EpisodeCard(media: media, season: selectedSeason ?? 1, episode: episode, compact: compact)
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.vertical, 36)
+                    .padding(.vertical, compact ? 20 : 36)
                 }
                 .focusSection()
             }
@@ -68,6 +70,7 @@ private struct EpisodeCard: View {
     let media: MovieInfo
     let season: Int
     let episode: Episode
+    let compact: Bool
 
     @EnvironmentObject private var playback: PlaybackViewModel
     @EnvironmentObject private var history: WatchHistory
@@ -76,15 +79,19 @@ private struct EpisodeCard: View {
         let mark = history.mark(showID: media.tmdbID, season: season, episode: episode.episodeNumber)
         let progress = mark?.progress ?? 0
         let watched = progress >= WatchEntry.finishedThreshold
+        let playing = playback.isPresented && playback.currentShow?.id == media.id
+            && playback.currentSeason == season && playback.currentEpisode == episode.episodeNumber
+        let width: CGFloat = compact ? 360 : 440
 
         VStack(alignment: .leading, spacing: 10) {
             Button {
+                guard !playing else { return }
                 let resume = (progress > 0 && !watched) ? (mark?.position ?? 0) : 0
                 playback.play(media, season: season, episode: episode.episodeNumber,
                               episodeTitle: episode.name, resumeAt: resume)
             } label: {
                 RemoteImage(url: episode.stillURL ?? media.backdropURL)
-                    .frame(width: 440, height: 248)
+                    .frame(width: width, height: width * 9 / 16)
                     .clipped()
                     .overlay(alignment: .bottom) {
                         if progress > 0 && !watched {
@@ -92,7 +99,13 @@ private struct EpisodeCard: View {
                         }
                     }
                     .overlay(alignment: .topTrailing) {
-                        if watched {
+                        if playing {
+                            Label("Playing", systemImage: "play.fill")
+                                .font(.caption.bold())
+                                .padding(.horizontal, 14).padding(.vertical, 8)
+                                .background(Color.black.opacity(0.7), in: Capsule())
+                                .padding(14)
+                        } else if watched {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.title2)
                                 .padding(14)
@@ -107,14 +120,14 @@ private struct EpisodeCard: View {
             if let details = detailsLine {
                 Text(details).font(.caption2).foregroundStyle(.secondary)
             }
-            if let overview = episode.overview, !overview.isEmpty {
+            if !compact, let overview = episode.overview, !overview.isEmpty {
                 Text(overview)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
             }
         }
-        .frame(width: 440, alignment: .leading)
+        .frame(width: width, alignment: .leading)
     }
 
     private var detailsLine: String? {

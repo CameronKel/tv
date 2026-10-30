@@ -19,8 +19,10 @@ final class PlaybackViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var nowPlayingTitle = ""
     @Published private(set) var status = ""
+    /// Buttons the player shows right now (Skip Intro, Next Episode).
+    @Published private(set) var actions: [PlayerAction] = []
 
-    private struct Request {
+    struct Request {
         let media: MovieInfo
         let season: Int?
         let episode: Int?
@@ -28,8 +30,11 @@ final class PlaybackViewModel: ObservableObject {
         let id = UUID()
     }
 
-    private var request: Request?
-    private var nextEpisode: (season: Int, episode: Int)?
+    private(set) var request: Request?
+    private(set) var nextEpisode: (season: Int, episode: Int)?
+    /// Recap, intro and credits times for the current episode, if known.
+    var markers: EpisodeMarkers?
+    var actionObserver: Any?
     private var resumeAt: Double = 0
     private var hasStarted = false
     /// The current stream has actually played; failures after that are real errors.
@@ -49,6 +54,10 @@ final class PlaybackViewModel: ObservableObject {
     private var loadTask: Task<Void, Never>?
     private var watchdog: Task<Void, Never>?
     private static let stallLimit: UInt64 = 20
+
+    func setActions(_ new: [PlayerAction]) {
+        actions = new
+    }
 
     /// The full-screen cover finished closing.
     func didDismiss() {
@@ -85,10 +94,12 @@ final class PlaybackViewModel: ObservableObject {
         let requestID = request?.id
         loadTask = Task { [weak self] in
             async let next = Self.lookUpNext(media: media, season: season, episode: episode)
+            async let marks = Self.lookUpMarkers(media: media, season: season, episode: episode)
             await self?.resolveAndStart()
-            let upNext = await next
+            let (upNext, markers) = await (next, marks)
             guard let self, self.request?.id == requestID else { return }
             self.nextEpisode = upNext
+            self.markers = markers
         }
     }
 
@@ -131,6 +142,7 @@ final class PlaybackViewModel: ObservableObject {
         tearDownPlayer()
         request = nil
         nextEpisode = nil
+        markers = nil
         untriedSources = []
         currentSource = nil
     }
@@ -138,6 +150,9 @@ final class PlaybackViewModel: ObservableObject {
     private func tearDownPlayer() {
         if let timeObserver { player?.removeTimeObserver(timeObserver) }
         timeObserver = nil
+        if let actionObserver { player?.removeTimeObserver(actionObserver) }
+        actionObserver = nil
+        actions = []
         watchdog?.cancel()
         watchdog = nil
         cancellables.removeAll()
@@ -185,8 +200,17 @@ final class PlaybackViewModel: ObservableObject {
 
         NotificationCenter.default.publisher(for: AVPlayerItem.didPlayToEndTimeNotification, object: item)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.saveProgress() }
+            .sink { [weak self] _ in
+                self?.saveProgress()
+                self?.playNextEpisode()
+            }
             .store(in: &cancellables)
+
+        actionObserver = player.addPeriodicTimeObserver(
+            forInterval: CMTime(seconds: 1, preferredTimescale: 1), queue: .main
+        ) { [weak self] time in
+            Task { @MainActor in self?.updateActions(at: time.seconds) }
+        }
 
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 10, preferredTimescale: 1), queue: .main
@@ -209,7 +233,7 @@ final class PlaybackViewModel: ObservableObject {
         player.play()
     }
 
-    private func saveProgress() {
+    func saveProgress() {
         guard let request, let item = player?.currentItem else { return }
         let position = item.currentTime().seconds
         let duration = item.duration.seconds
@@ -224,6 +248,11 @@ final class PlaybackViewModel: ObservableObject {
     }
 
     // MARK: - Helpers
+
+    private static func lookUpMarkers(media: MovieInfo, season: Int?, episode: Int?) async -> EpisodeMarkers? {
+        guard media.isTV, let season, let episode else { return nil }
+        return await TheIntroDB.markers(showID: media.tmdbID, season: season, episode: episode)
+    }
 
     private static func lookUpNext(media: MovieInfo, season: Int?, episode: Int?) async -> (season: Int, episode: Int)? {
         guard media.isTV, let season, let episode else { return nil }

@@ -37,6 +37,11 @@ AVPlayer plays fMP4 HLS
 - **Detail**: backdrop, info, Play/Resume, My List, More Like This. Shows get a
   season picker and episode cards with progress; Play continues where you left off
   or starts the next episode.
+- **Player** (system `AVPlayerViewController`): shows get **Skip Recap / Skip Intro** while those
+  play and **Next Episode** once the credits start, with times from TheIntroDB
+  (`api.theintrodb.org`, popular shows only; otherwise Next Episode appears in the last 40 s).
+  At the end of an episode the next one starts. Swipe down for an **Episodes** tab to jump
+  to any episode of any season.
 - Watch progress and My List are stored on the device (`WatchHistory`, UserDefaults).
   Long-press a Continue Watching card to open details or remove it.
 

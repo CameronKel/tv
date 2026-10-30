@@ -1,7 +1,8 @@
 import SwiftUI
 import AVKit
 
-/// Full-screen player: a spinner while the stream resolves, then the video.
+/// Full-screen player: a spinner while the stream resolves, then the system
+/// player with the show controls (`PlayerController`).
 /// Errors show on top with a Back button.
 struct PlayerScreen: View {
     @EnvironmentObject private var playback: PlaybackViewModel
@@ -11,7 +12,9 @@ struct PlayerScreen: View {
             Color.black.ignoresSafeArea()
 
             if let player = playback.player {
-                VideoPlayer(player: player).ignoresSafeArea()
+                PlayerController(player: player, actions: playback.actions,
+                                 episodes: episodesTab, perform: playback.perform)
+                    .ignoresSafeArea()
             } else if playback.errorMessage == nil {
                 VStack(spacing: 30) {
                     ProgressView()
@@ -35,5 +38,14 @@ struct PlayerScreen: View {
                 .padding(80)
             }
         }
+    }
+
+    private var episodesTab: AnyView? {
+        guard let show = playback.currentShow else { return nil }
+        return AnyView(
+            PlayerEpisodesView(show: show, startSeason: playback.currentSeason ?? 1)
+                .environmentObject(playback)
+                .environmentObject(WatchHistory.shared)
+        )
     }
 }
