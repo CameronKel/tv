@@ -37,6 +37,11 @@ AVPlayer plays fMP4 HLS
 - **Detail**: backdrop, info, Play/Resume, My List, More Like This. Shows get a
   season picker and episode cards with progress; Play continues where you left off
   or starts the next episode.
+- **Player** (system `AVPlayerViewController`): shows get **Skip Recap / Skip Intro** while those
+  play and **Next Episode** once the credits start, with times from TheIntroDB
+  (`api.theintrodb.org`, popular shows only; otherwise Next Episode appears in the last 40 s).
+  At the end of an episode the next one starts. Swipe down for an **Episodes** tab to jump
+  to any episode of any season.
 - Watch progress and My List are stored on the device (`WatchHistory`, UserDefaults).
   Long-press a Continue Watching card to open details or remove it.
 
@@ -66,3 +71,12 @@ AVPlayer plays fMP4 HLS
 - **Free Apple ID = 7-day re-sideload.** Unavoidable without paid developer account.
 - **Site can rotate `crush.wasm`** — build workflow re-downloads it each push, so a rebuild + re-sideload survives any rotation.
 - **`/g` protocol can change** — a full protocol change would need re-reverse-engineering.
+
+## Simulator walkthrough
+
+`.github/workflows/ui-test.yml` runs the app in an Apple TV simulator on every
+push and drives it with the remote (`CinejoyNativeUITests/WalkthroughTests.swift`).
+A screenshot and the focused element for every step end up on the
+`ui-test-results` branch (`*-log.txt` lists the steps). It asserts nothing; it
+shows what each screen looks like. Simulator playback isn't the real device:
+use it for layout, focus and crashes, not smoothness.

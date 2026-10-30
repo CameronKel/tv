@@ -1,0 +1,98 @@
+name: tvOS UI walkthrough
+
+# Runs the app in an Apple TV simulator, drives it with the remote
+# (CinejoyNativeUITests) and publishes a screenshot and focus log for every
+# step to the `ui-test-results` branch.
+
+on:
+  push:
+    branches: [ main, 'claude/**' ]
+  workflow_dispatch:
+
+concurrency:
+  group: ui-test
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  walkthrough:
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Download crush.wasm
+        run: |
+          mkdir -p CinejoyNative/Resources
+          curl -fsSL https://api.wing.st/crush.wasm -o CinejoyNative/Resources/crush.wasm
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick an Apple TV simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          tv = [d for rt, ds in devices.items() if "tvOS" in rt for d in ds]
+          best = sorted(tv, key=lambda d: ("4K" not in d["name"], d["name"]))
+          print(best[0]["udid"] if best else "")')
+          if [ -z "$UDID" ]; then
+            RUNTIME=$(xcrun simctl list runtimes -j | python3 -c 'import json,sys; print([r["identifier"] for r in json.load(sys.stdin)["runtimes"] if r["platform"]=="tvOS" and r["isAvailable"]][-1])')
+            UDID=$(xcrun simctl create "Apple TV 4K" com.apple.CoreSimulator.SimDeviceType.Apple-TV-4K-3rd-generation-4K "$RUNTIME")
+          fi
+          xcrun simctl list devices | grep "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$UDID" || true
+
+      - name: Run walkthrough
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project CinejoyNative.xcodeproj \
+            -scheme CinejoyNative \
+            -destination "platform=tvOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath "$RUNNER_TEMP/walkthrough.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tail -n 80
+
+      - name: Export screenshots and logs
+        if: always()
+        run: |
+          OUT="$RUNNER_TEMP/out"
+          mkdir -p "$OUT/raw" "$OUT/steps"
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/walkthrough.xcresult" --output-path "$OUT/raw" || true
+          python3 - "$OUT" <<'PY'
+          import json, os, shutil, sys
+          out = sys.argv[1]
+          manifest = os.path.join(out, "raw", "manifest.json")
+          if os.path.exists(manifest):
+              for test in json.load(open(manifest)):
+                  for a in test.get("attachments", []):
+                      name = a.get("suggestedHumanReadableName") or a["exportedFileName"]
+                      ext = os.path.splitext(a["exportedFileName"])[1]
+                      base = os.path.splitext(name)[0].split("_")[0]
+                      if not base.endswith(ext): base += ext
+                      shutil.copy(os.path.join(out, "raw", a["exportedFileName"]), os.path.join(out, "steps", base))
+          PY
+          # Half size is plenty to judge layout and focus.
+          for f in "$OUT"/steps/*.png; do [ -e "$f" ] && sips -Z 960 "$f" >/dev/null; done
+          ls -la "$OUT/steps"
+
+      - name: Publish to ui-test-results branch
+        if: always()
+        run: |
+          OUT="$RUNNER_TEMP/out/steps"
+          cd "$RUNNER_TEMP" && rm -rf publish && mkdir publish && cd publish
+          git init -q -b ui-test-results
+          cp -R "$OUT"/. . 2>/dev/null || true
+          printf "Walkthrough of %s (%s)\nRun: %s/%s/actions/runs/%s\n" "${GITHUB_SHA::7}" "$GITHUB_REF_NAME" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > README.md
+          git add -A
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -qm "UI walkthrough of ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" HEAD:ui-test-results
