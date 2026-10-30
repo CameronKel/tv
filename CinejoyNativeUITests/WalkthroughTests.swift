@@ -76,6 +76,7 @@ final class WalkthroughTests: XCTestCase {
         wait(2)
         record("back-from-show")
         openSidebar()
+        press(.up, times: 3)
         press(.down, times: 3)
         press(.select)
         wait(3)

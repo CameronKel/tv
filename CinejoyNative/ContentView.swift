@@ -17,11 +17,11 @@ struct ContentView: View {
             }
     }
 
-    /// The system sidebar down the left edge where tvOS has it (18 and later),
-    /// otherwise the top tab bar.
+    /// The system sidebar where the OS has it (tvOS / iPadOS 18 and later; on
+    /// iPad a top tab bar that opens into a sidebar), otherwise plain tabs.
     @ViewBuilder
     private var sections: some View {
-        if #available(tvOS 18.0, *) {
+        if #available(tvOS 18.0, iOS 18.0, *) {
             TabView(selection: $section) {
                 ForEach(AppSection.allCases) { item in
                     Tab(item.title, systemImage: item.icon, value: item) { page(item) }

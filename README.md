@@ -72,11 +72,21 @@ AVPlayer plays fMP4 HLS
 - **Site can rotate `crush.wasm`** — build workflow re-downloads it each push, so a rebuild + re-sideload survives any rotation.
 - **`/g` protocol can change** — a full protocol change would need re-reverse-engineering.
 
+## iPad
+
+The `CinejoyPad` target builds the same app for iPad (`CinejoyPad/` holds its
+Info.plist and icon). Platform differences are in
+`CinejoyNative/Views/Components/Platform.swift` (focus sections, card buttons,
+sizes scaled to 60%) and `#if os(tvOS)` blocks. The player draws Skip Intro, Next
+Episode, Episodes and Close over the video, and supports picture-in-picture. The
+build workflow uploads `Cinejoy-iPad-unsigned-ipa` next to the Apple TV one.
+
 ## Simulator walkthrough
 
-`.github/workflows/ui-test.yml` runs the app in an Apple TV simulator on every
-push and drives it with the remote (`CinejoyNativeUITests/WalkthroughTests.swift`).
-A screenshot and the focused element for every step end up on the
-`ui-test-results` branch (`*-log.txt` lists the steps). It asserts nothing; it
+`.github/workflows/ui-test.yml` runs the app on every push in an Apple TV
+simulator, driven with the remote (`CinejoyNativeUITests/`), and an iPad
+simulator, driven with taps (`CinejoyPadUITests/`). A screenshot for every step
+ends up on the `ui-test-results` branch under `tv/` and `ipad/` (`*-log.txt`
+lists the steps). It asserts nothing; it
 shows what each screen looks like. Simulator playback isn't the real device:
 use it for layout, focus and crashes, not smoothness.

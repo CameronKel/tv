@@ -20,15 +20,15 @@ struct MediaRow: View {
         VStack(alignment: .leading, spacing: 0) {
             RowHeader(title: title)
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(alignment: .top, spacing: 40) {
+                LazyHStack(alignment: .top, spacing: UI.s(40)) {
                     ForEach(items) { PosterCard(media: $0) }
                 }
                 // Room for the focus lift, which the scroll view would clip.
                 .padding(.horizontal, 20)
-                .padding(.vertical, 36)
+                .padding(.vertical, UI.s(36))
             }
         }
-        .focusSection()
+        .tvFocusSection()
     }
 }
 
@@ -40,14 +40,14 @@ struct ContinueWatchingRow: View {
         VStack(alignment: .leading, spacing: 0) {
             RowHeader(title: "Continue Watching")
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(alignment: .top, spacing: 40) {
+                LazyHStack(alignment: .top, spacing: UI.s(40)) {
                     ForEach(entries) { ContinueCard(entry: $0, openDetails: openDetails) }
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 36)
+                .padding(.vertical, UI.s(36))
             }
         }
-        .focusSection()
+        .tvFocusSection()
     }
 }
 
@@ -62,20 +62,20 @@ struct HeroBanner: View {
         ZStack(alignment: .bottomLeading) {
             RemoteImage(url: media.backdropURL)
                 .frame(maxWidth: .infinity)
-                .frame(height: 640)
+                .frame(height: UI.s(640))
                 .clipped()
             LinearGradient(colors: [.black.opacity(0.85), .black.opacity(0.4), .clear],
                            startPoint: .bottomLeading, endPoint: .topTrailing)
 
             VStack(alignment: .leading, spacing: 18) {
                 Text(media.displayName)
-                    .font(.system(size: 64, weight: .bold))
+                    .font(.system(size: UI.s(64), weight: .bold))
                     .lineLimit(2)
                 if let overview = media.overview, !overview.isEmpty {
                     Text(overview)
                         .font(.callout)
                         .lineLimit(3)
-                        .frame(maxWidth: 900, alignment: .leading)
+                        .frame(maxWidth: UI.s(900), alignment: .leading)
                 }
                 HStack(spacing: 30) {
                     Button {
@@ -89,11 +89,11 @@ struct HeroBanner: View {
                 }
                 .padding(.top, 10)
             }
-            .padding(50)
+            .padding(UI.s(50))
         }
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .padding(.horizontal, 20)
-        .focusSection()
+        .tvFocusSection()
     }
 }
 

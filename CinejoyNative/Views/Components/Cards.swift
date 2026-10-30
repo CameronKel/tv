@@ -90,7 +90,7 @@ struct ProgressBar: View {
 /// A focusable poster that opens the title's detail screen, with its name below.
 struct PosterCard: View {
     let media: MovieInfo
-    var width: CGFloat = 230
+    var width: CGFloat = UI.s(230)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -99,7 +99,8 @@ struct PosterCard: View {
                     .frame(width: width, height: width * 1.5)
                     .clipped()
             }
-            .buttonStyle(.card)
+            .accessibilityLabel(media.displayName)
+            .cardButton()
 
             Text(media.displayName)
                 .font(.caption)
@@ -123,7 +124,7 @@ struct ContinueCard: View {
                 playback.play(entry.media, target: history.playTarget(for: entry.media))
             } label: {
                 RemoteImage(url: entry.media.backdropURL ?? entry.media.posterURL)
-                    .frame(width: 440, height: 248)
+                    .frame(width: UI.s(440), height: UI.s(248))
                     .clipped()
                     .overlay(alignment: .bottom) {
                         if entry.progress > 0 {
@@ -131,7 +132,7 @@ struct ContinueCard: View {
                         }
                     }
             }
-            .buttonStyle(.card)
+            .cardButton()
             .contextMenu {
                 Button { openDetails(entry.media) } label: {
                     Label("Go to Details", systemImage: "info.circle")
@@ -144,7 +145,7 @@ struct ContinueCard: View {
             Text(entry.media.displayName).font(.headline).lineLimit(1)
             Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }
-        .frame(width: 440, alignment: .leading)
+        .frame(width: UI.s(440), alignment: .leading)
     }
 
     private var subtitle: String {

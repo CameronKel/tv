@@ -20,6 +20,18 @@ jobs:
   walkthrough:
     runs-on: macos-15
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - device: tv
+            scheme: CinejoyNative
+            runtime: tvOS
+            prefer: "4K"
+          - device: ipad
+            scheme: CinejoyPad
+            runtime: iOS
+            prefer: "iPad Pro"
 
     steps:
       - uses: actions/checkout@v4
@@ -35,19 +47,21 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Pick an Apple TV simulator
+      - name: Pick a simulator
         id: sim
+        env:
+          RUNTIME: ${{ matrix.runtime }}
+          PREFER: ${{ matrix.prefer }}
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
+          import json, os, sys
           devices = json.load(sys.stdin)["devices"]
-          tv = [d for rt, ds in devices.items() if "tvOS" in rt for d in ds]
-          best = sorted(tv, key=lambda d: ("4K" not in d["name"], d["name"]))
+          runtime, prefer = os.environ["RUNTIME"], os.environ["PREFER"]
+          wanted = "Apple TV" if runtime == "tvOS" else "iPad"
+          found = [d for rt, ds in devices.items() if "." + runtime + "-" in rt for d in ds if wanted in d["name"]]
+          best = sorted(found, key=lambda d: (prefer not in d["name"], d["name"]))
           print(best[0]["udid"] if best else "")')
-          if [ -z "$UDID" ]; then
-            RUNTIME=$(xcrun simctl list runtimes -j | python3 -c 'import json,sys; print([r["identifier"] for r in json.load(sys.stdin)["runtimes"] if r["platform"]=="tvOS" and r["isAvailable"]][-1])')
-            UDID=$(xcrun simctl create "Apple TV 4K" com.apple.CoreSimulator.SimDeviceType.Apple-TV-4K-3rd-generation-4K "$RUNTIME")
-          fi
+          test -n "$UDID" || { xcrun simctl list devices available; exit 1; }
           xcrun simctl list devices | grep "$UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
           xcrun simctl boot "$UDID" || true
@@ -57,8 +71,8 @@ jobs:
           set -o pipefail
           xcodebuild test \
             -project CinejoyNative.xcodeproj \
-            -scheme CinejoyNative \
-            -destination "platform=tvOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -scheme ${{ matrix.scheme }} \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
             -resultBundlePath "$RUNNER_TEMP/walkthrough.xcresult" \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tail -n 80
 
@@ -85,13 +99,32 @@ jobs:
           for f in "$OUT"/steps/*.png; do [ -e "$f" ] && sips -Z 960 "$f" >/dev/null; done
           ls -la "$OUT/steps"
 
-      - name: Publish to ui-test-results branch
+      - name: Upload steps
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: walkthrough-${{ matrix.device }}
+          path: ${{ runner.temp }}/out/steps
+          retention-days: 14
+
+  publish:
+    needs: walkthrough
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: steps
+
+      - name: Publish to ui-test-results branch
         run: |
-          OUT="$RUNNER_TEMP/out/steps"
-          cd "$RUNNER_TEMP" && rm -rf publish && mkdir publish && cd publish
+          mkdir publish && cd publish
           git init -q -b ui-test-results
-          cp -R "$OUT"/. . 2>/dev/null || true
+          for d in ../steps/walkthrough-*; do
+            [ -d "$d" ] || continue
+            name=${d##*/walkthrough-}
+            mkdir -p "$name" && cp -R "$d"/. "$name"/
+          done
           printf "Walkthrough of %s (%s)\nRun: %s/%s/actions/runs/%s\n" "${GITHUB_SHA::7}" "$GITHUB_REF_NAME" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > README.md
           git add -A
           git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -qm "UI walkthrough of ${GITHUB_SHA::7}"

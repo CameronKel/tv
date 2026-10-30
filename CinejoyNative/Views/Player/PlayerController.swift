@@ -1,9 +1,10 @@
 import AVKit
 import SwiftUI
 
-/// The system player (AVPlayerViewController) with the show controls Apple
-/// gives it room for: contextual actions for Skip Intro / Next Episode, and
-/// an Episodes tab in the swipe-down info panel.
+/// The system player (AVPlayerViewController). On Apple TV it carries the
+/// show controls tvOS gives it room for: contextual actions for Skip Intro /
+/// Next Episode, and an Episodes tab in the swipe-down info panel. iPad has
+/// neither, so `PlayerScreen` draws those buttons over the video there.
 struct PlayerController: UIViewControllerRepresentable {
     let player: AVPlayer
     let actions: [PlaybackViewModel.PlayerAction]
@@ -16,33 +17,33 @@ struct PlayerController: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
         controller.player = player
+        #if os(tvOS)
         if let episodes {
             let tab = UIHostingController(rootView: episodes)
             tab.title = "Episodes"
             tab.preferredContentSize = CGSize(width: 0, height: 400)
             controller.customInfoViewControllers = [tab]
         }
+        #else
+        controller.allowsPictureInPicturePlayback = true
+        controller.canStartPictureInPictureAutomaticallyFromInline = true
+        #endif
         return controller
     }
 
     func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
         if controller.player !== player { controller.player = player }
+        #if os(tvOS)
         // Rebuilding the buttons on every SwiftUI update would make them flicker.
         guard context.coordinator.shown != actions else { return }
         context.coordinator.shown = actions
         let perform = self.perform
         controller.contextualActions = actions.map { action in
-            UIAction(title: action.title, image: UIImage(systemName: icon(for: action))) { _ in
+            UIAction(title: action.title, image: UIImage(systemName: action.icon)) { _ in
                 Task { @MainActor in perform(action) }
             }
         }
-    }
-
-    private func icon(for action: PlaybackViewModel.PlayerAction) -> String {
-        switch action {
-        case .skipRecap, .skipIntro: return "forward.fill"
-        case .nextEpisode: return "forward.end.fill"
-        }
+        #endif
     }
 
     final class Coordinator {

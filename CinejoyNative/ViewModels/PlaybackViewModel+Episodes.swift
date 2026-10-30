@@ -9,6 +9,13 @@ extension PlaybackViewModel {
         case skipIntro(to: Double)
         case nextEpisode
 
+        var icon: String {
+            switch self {
+            case .skipRecap, .skipIntro: return "forward.fill"
+            case .nextEpisode: return "forward.end.fill"
+            }
+        }
+
         var title: String {
             switch self {
             case .skipRecap: return "Skip Recap"
