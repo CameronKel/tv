@@ -43,6 +43,8 @@ final class PlaybackViewModel: ObservableObject {
     /// can fall back to the next one.
     private var untriedSources: [String] = []
     private var currentSource: String?
+    /// Why each source tried for this request didn't play, shown if they all fail.
+    private var failures: [String] = []
     /// Sources whose streams the player rejected this launch; tried last from then on.
     private static var failedSources = Set<String>()
     /// Starting playback while the last player is still animating away would be
@@ -117,16 +119,20 @@ final class PlaybackViewModel: ObservableObject {
             start(resolved.url)
         } catch {
             guard !Task.isCancelled else { return }
-            errorMessage = error.localizedDescription
+            errorMessage = ([error.localizedDescription] + failures).joined(separator: "\n")
         }
     }
 
     /// The stream failed or stalled before it ever played: try the next source.
     private func fallBack(after item: AVPlayerItem) {
         guard player?.currentItem === item else { return }
-        if let currentSource { Self.failedSources.insert(currentSource) }
+        let reason = item.status == .failed ? Self.describe(item) : "The stream didn't start. Try again."
+        if let currentSource {
+            Self.failedSources.insert(currentSource)
+            failures.append("\(currentSource): \(reason.components(separatedBy: "\n")[0])")
+        }
         guard !untriedSources.isEmpty else {
-            errorMessage = item.status == .failed ? Self.describe(item) : "The stream didn't start. Try again."
+            errorMessage = reason
             return
         }
         tearDownPlayer()
@@ -145,6 +151,7 @@ final class PlaybackViewModel: ObservableObject {
         markers = nil
         untriedSources = []
         currentSource = nil
+        failures = []
     }
 
     private func tearDownPlayer() {

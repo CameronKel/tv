@@ -37,6 +37,7 @@ final class PadWalkthroughTests: XCTestCase {
         tap(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Play'")).firstMatch, "Play")
         wait(30)
         record("player")
+        logStatus()
         app.tap()
         wait(1)
         record("player-controls")
@@ -47,7 +48,9 @@ final class PadWalkthroughTests: XCTestCase {
             tap(app.buttons["Done"], "Done")
             wait(1)
         }
-        tap(app.buttons["Close"], "Close")
+        // Close while playing, Cancel while loading, Back on an error.
+        let close = ["Close", "Cancel", "Back"].map { app.buttons[$0] }.first { $0.exists } ?? app.buttons["Close"]
+        tap(close, close.label.isEmpty ? "Close" : close.label)
         wait(2)
         record("back-from-player")
 
@@ -72,6 +75,12 @@ final class PadWalkthroughTests: XCTestCase {
         } else {
             log += "  COULD NOT TAP \(name) (exists: \(element.exists))\n"
         }
+    }
+
+    /// The loading or error text, so a stream that never plays says why.
+    private func logStatus() {
+        let texts = app.staticTexts.allElementsBoundByIndex.prefix(6).map(\.label).filter { !$0.isEmpty }
+        if !texts.isEmpty { log += "  on screen: \(texts.joined(separator: " | "))\n" }
     }
 
     private func wait(_ seconds: TimeInterval) {
