@@ -66,3 +66,12 @@ AVPlayer plays fMP4 HLS
 - **Free Apple ID = 7-day re-sideload.** Unavoidable without paid developer account.
 - **Site can rotate `crush.wasm`** — build workflow re-downloads it each push, so a rebuild + re-sideload survives any rotation.
 - **`/g` protocol can change** — a full protocol change would need re-reverse-engineering.
+
+## Simulator walkthrough
+
+`.github/workflows/ui-test.yml` runs the app in an Apple TV simulator on every
+push and drives it with the remote (`CinejoyNativeUITests/WalkthroughTests.swift`).
+A screenshot and the focused element for every step end up on the
+`ui-test-results` branch (`*-log.txt` lists the steps). It asserts nothing; it
+shows what each screen looks like. Simulator playback isn't the real device:
+use it for layout, focus and crashes, not smoothness.
