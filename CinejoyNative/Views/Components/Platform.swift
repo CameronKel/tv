@@ -23,6 +23,25 @@ extension View {
         #endif
     }
 
+    /// Play and the like. Apple TV's default button already reads as one when
+    /// focused; on iPad a default button is bare blue text.
+    func primaryAction() -> some View {
+        #if os(tvOS)
+        self
+        #else
+        buttonStyle(.borderedProminent).tint(.white).foregroundStyle(.black)
+        #endif
+    }
+
+    /// My List, Details, unselected seasons: a filled grey button on iPad.
+    func secondaryAction() -> some View {
+        #if os(tvOS)
+        self
+        #else
+        buttonStyle(.bordered).tint(.white)
+        #endif
+    }
+
     /// The lifting card look on Apple TV; a plain tappable image on iPad.
     func cardButton() -> some View {
         #if os(tvOS)

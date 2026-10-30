@@ -57,7 +57,7 @@ private struct SeasonButton: View {
         if isSelected {
             Button(action: action) { label }.buttonStyle(.borderedProminent)
         } else {
-            Button(action: action) { label }
+            Button(action: action) { label }.secondaryAction()
         }
     }
 

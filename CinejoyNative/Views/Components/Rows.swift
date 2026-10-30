@@ -83,9 +83,11 @@ struct HeroBanner: View {
                     } label: {
                         Label(history.playTarget(for: media).label, systemImage: "play.fill")
                     }
+                    .primaryAction()
                     NavigationLink(value: media) {
                         Label("Details", systemImage: "info.circle")
                     }
+                    .secondaryAction()
                 }
                 .padding(.top, 10)
             }

@@ -28,7 +28,7 @@ AVPlayer plays fMP4 HLS
 
 ## App
 
-- **Navigation**: the system sidebar down the left edge on tvOS 18+ (Home, Movies, TV Shows,
+- **Navigation**: the system sidebar down the left edge on tvOS 18+, the floating tab bar on iPad (Home, Movies, TV Shows,
   Search); the top tab bar on older tvOS.
 
 - **Home**: featured title, Continue Watching, Recently Watched, My List,

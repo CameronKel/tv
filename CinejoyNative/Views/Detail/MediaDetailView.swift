@@ -76,11 +76,13 @@ struct MediaDetailView: View {
                 } label: {
                     Label(target.label, systemImage: "play.fill")
                 }
+                .primaryAction()
                 Button {
                     history.toggleMyList(media)
                 } label: {
                     Label(inList ? "In My List" : "My List", systemImage: inList ? "checkmark" : "plus")
                 }
+                .secondaryAction()
             }
             .padding(.top, 16)
 
