@@ -1,0 +1,29 @@
+  pressed up x2
+  pressed left x3
+2-01-sidebar-open: app running; focus: 9 'Home'  at (45.0, 55.0, 320.0, 72.0)
+  pressed down x1
+  pressed select x1
+2-02-movies: app running; focus: 9 'Play'  at (135.0, 673.229736328125, 233.5, 82.04052734375)
+  pressed up x2
+  pressed left x3
+  pressed up x3
+  pressed down x2
+  pressed select x1
+  pressed down x1
+  pressed select x1
+2-03-show-detail: app running; focus: 9 'Play S1 E1'  at (85.0, 557.4249877929688, 330.0, 78.6500244140625)
+  pressed down x1
+2-04-show-seasons: app running; focus: 9 'Season 1'  at (85.0, 749.4555053710938, 266.0, 80.5889892578125)
+  pressed right x1
+  pressed select x1
+2-05-show-season-changed: app running; focus: 9 'Season 1'  at (85.0, 749.2333374023438, 255.0, 81.0333251953125)
+  pressed down x1
+2-06-show-episodes: app running; focus: 9 ''  at (76.0, 639.0, 488.0, 274.5)
+  pressed menu x1
+2-07-back-from-show: app running; focus: 9 ''  at (84.0, 531.0, 262.0, 393.0)
+  pressed up x2
+  pressed left x3
+  pressed up x3
+  pressed down x3
+  pressed select x1
+2-08-search: app running; focus: 19 'Keyboard'  at (80.0, 164.5, 1760.0, 66.0)

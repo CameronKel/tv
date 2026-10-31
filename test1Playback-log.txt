@@ -1,0 +1,16 @@
+1-01-home: app running; focus: 9 'Play'  at (135.0, 673.229736328125, 233.5, 82.04052734375)
+  pressed down x2
+1-02-home-down2: app running; focus: 9 ''  at (84.0, 531.0, 262.0, 393.0)
+  pressed select x1
+1-03-detail: app running; focus: 9 'Play'  at (85.0, 669.229736328125, 233.5, 82.04052734375)
+  pressed select x1
+1-04-player-loading: app running; focus: 9 'Cancel'  at (847.5, 614.0140380859375, 225.5, 82.471923828125)
+1-05-player-after-25s: app running; focus: 1 ''  at (0.0, 0.0, 1920.0, 1080.0)
+  pressed menu x1
+  pressed select x1
+1-06-replay-while-closing: app running; focus: 9 'Cancel'  at (847.5, 614.0140380859375, 225.5, 82.471923828125)
+1-07-replay-after-15s: app running; focus: 1 ''  at (0.0, 0.0, 1920.0, 1080.0)
+  pressed menu x1
+1-08-back-on-detail: app running; focus: 9 'Play'  at (85.0, 669.729736328125, 233.5, 82.04052734375)
+  pressed menu x1
+1-09-back-on-home: app running; focus: 9 ''  at (84.0, 531.0, 262.0, 393.0)

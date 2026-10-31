@@ -1,0 +1,20 @@
+  pressed up x2
+  pressed left x3
+  pressed up x3
+  pressed down x2
+  pressed select x1
+  pressed down x1
+  pressed select x1
+3-01-show-detail: app running; focus: 9 'Play S1 E1'  at (85.0, 557.4249877929688, 330.0, 78.6500244140625)
+  pressed select x1
+3-02-episode-playing: app running; focus: 9 'Cancel'  at (847.5, 614.0140380859375, 225.5, 82.471923828125)
+  pressed down x1
+3-03-info-panel: app running; focus: 9 'Back'  at (864.5, 531.359130859375, 191.5, 84.78173828125)
+  pressed right x1
+3-04-info-panel-right: app running; focus: 9 'Back'  at (864.5, 531.359130859375, 191.5, 84.78173828125)
+  pressed right x1
+3-05-info-panel-right2: app running; focus: 9 'Back'  at (864.5, 531.359130859375, 191.5, 84.78173828125)
+  pressed down x1
+3-06-episodes-tab-cards: app running; focus: 9 'Back'  at (864.5, 531.359130859375, 191.5, 84.78173828125)
+  pressed menu x1
+3-07-panel-closed: app running; focus: 9 'Play S1 E1'  at (85.0, 557.4249877929688, 330.0, 78.6500244140625)
