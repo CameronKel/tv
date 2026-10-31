@@ -90,7 +90,7 @@ function svg() {
     <feFlood flood-color="#ff3d8b" flood-opacity="0.8"/><feComposite in2="b" operator="in" result="g"/>
     <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
   <text x="${W / 2 - 31 * u}" y="${cy + 13 * u}" font-family="Bebas Neue" font-size="${40 * u}" letter-spacing="${2.5 * u}"
-    fill="url(#word)" filter="url(#wglow)">CINEJOY</text>`;
+    fill="url(#word)" filter="url(#wglow)">CAMFLIX</text>`;
 }
 
 (async () => {
